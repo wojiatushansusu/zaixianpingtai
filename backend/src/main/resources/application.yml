@@ -1,0 +1,110 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+# JavaCPP/JavaCV 原生库缓存路径（默认放在用户主目录，这里指向项目目录避免污染C盘）
+javacpp:
+  cachepath: .javacpp-cache/cache
+
+spring:
+  application:
+    name: exam-platform
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:exam_platform}?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+    username: ${DB_USERNAME:root}
+    password: 123456
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+      timeout: 5000ms
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+    serialization:
+      write-dates-as-timestamps: false
+
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.exam.pojo
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+# JWT 配置
+jwt:
+  secret: your-very-long-secret-key-here-for-jwt-signing
+  expiration: 86400000
+  header: Authorization
+  prefix: "Bearer "
+
+# 文件上传配置
+file:
+  upload:
+    path: ./uploads/
+    avatar-path: avatar/
+    max-size: 5242880
+
+# 人脸核验配置
+app:
+  face:
+    enabled: true
+    threshold: 0.75
+    verify-expire-minutes: 30
+  upload:
+    path: uploads
+  # AI配置（CV分析 + LLM路由）
+  ai:
+    enabled: false
+    face-detect-interval: 3
+    head-pose-threshold: 30
+    multi-face-alert: true
+    forbidden-detect: true
+    # LLM统一路由配置 - 阿里云百炼（OpenAI兼容）
+    # 切换免费模型只需改 default-model，未单独配置的级别自动继承
+    default-model: qwen3.7-plus
+    default-api-url: https://ws-t070vbq0i9wt7qld.cn-beijing.maas.aliyuncs.com/compatible-mode/v1
+    default-api-key: sk-ws-H.RYPIMXE.BCIg.MEQCIFc3341SxZlYuLn7cuNjBM0drsTM2OpMxE1bUtW4_s8nAiBCsx2mQXdudNlH-kNukFwEmTDzqWvo_qQwaaxCRZyq_Q
+    default-timeout: 60
+    # 轻量级：错题讲解、简单问答（快速响应）
+    # 不配model则继承default-model，用完免费额度换个模型名就行
+    light:
+      max-tokens: 1024
+      temperature: 0.7
+      timeout: 60
+    # 标准级：多轮对话、知识问答（平衡质量与速度）
+    standard:
+      max-tokens: 2048
+      temperature: 0.7
+      timeout: 120
+    # 高能力：生成试卷、AI分类分析（保证质量）
+    heavy:
+      max-tokens: 4096
+      temperature: 0.8
+      timeout: 300
+  # 视频证据配置
+  video:
+    enabled: true
+    duration: 10
+  # 心跳超时
+  heartbeat:
+    timeout: 60
+
+# 日志配置
+logging:
+  level:
+    com.exam: debug
+    com.baomidou.mybatisplus: debug
