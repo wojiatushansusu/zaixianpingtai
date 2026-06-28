@@ -1,9 +1,0 @@
-com\exam\service\GradingLogicTest$SingleChoiceGrading.class
-com\exam\service\GradingLogicTest$RemainingTimeCalculation.class
-com\exam\service\GradingLogicTest$JudgeChoiceGrading.class
-com\exam\service\GradingLogicTest.class
-com\exam\service\GradingLogicTest$DifficultyLevel.class
-com\exam\service\GradingLogicTest$ViolationScoring.class
-com\exam\service\GradingLogicTest$AnswerParsing.class
-com\exam\service\GradingLogicTest$MultiChoiceGrading.class
-com\exam\service\GradingLogicTest$StatisticsCalculation.class
