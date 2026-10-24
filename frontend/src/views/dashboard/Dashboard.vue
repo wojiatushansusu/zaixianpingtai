@@ -58,7 +58,7 @@
         </div>
         <div class="stat-info">
           <div class="stat-value">{{ stats.selfStudyCount }}</div>
-          <div class="stat-label">AI自助考试</div>
+          <div class="stat-label">AI 出卷</div>
         </div>
         <div class="stat-arrow">
           <el-icon><ArrowRight /></el-icon>

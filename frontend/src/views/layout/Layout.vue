@@ -25,6 +25,15 @@
           <template #title>首页</template>
         </el-menu-item>
 
+        <!--
+          AI 出卷独立成一级入口：这是平台最有辨识度的能力（自然语言出题 → 生成考试码 → 同学来考），
+          原先折叠在「学生中心」三级菜单里，等于把最强的故事点藏起来了。
+        -->
+        <el-menu-item v-if="isStudent || isAdmin" index="/student/self-study" class="highlight-entry">
+          <el-icon><MagicStick /></el-icon>
+          <template #title>AI 出卷</template>
+        </el-menu-item>
+
         <template v-if="isStudent || isAdmin">
           <el-sub-menu index="student-menu">
             <template #title>
@@ -34,7 +43,6 @@
             <el-menu-item index="/student/exams">我的考试</el-menu-item>
             <el-menu-item index="/student/grades">我的成绩</el-menu-item>
             <el-menu-item index="/student/wrong-questions">错题本</el-menu-item>
-            <el-menu-item index="/student/self-study">AI自助考试</el-menu-item>
           </el-sub-menu>
         </template>
 
@@ -58,6 +66,13 @@
         </template>
       </el-menu>
     </aside>
+
+    <!-- 移动端：侧栏展开时盖一层遮罩，点击空白处收起 -->
+    <div
+      v-if="isMobile && !collapsed"
+      class="sidebar-mask"
+      @click="collapsed = true"
+    ></div>
 
     <div class="main-container">
       <header class="header">
@@ -119,7 +134,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -133,6 +148,28 @@ const router = useRouter()
 
 const collapsed = ref(false)
 const userInfo = ref({})
+
+// ≤768px 时侧栏是浮层（position: fixed），若不默认收起会一进页面就盖住正文。
+const MOBILE_BREAKPOINT = 768
+const isMobile = ref(false)
+
+const syncViewport = () => {
+  const mobile = window.innerWidth <= MOBILE_BREAKPOINT
+  // 只在真正跨越断点时重置状态，否则用户手动展开后，任何一次 resize 都会把它强制收起
+  if (mobile === isMobile.value) return
+  isMobile.value = mobile
+  collapsed.value = mobile
+}
+
+onMounted(() => {
+  isMobile.value = window.innerWidth <= MOBILE_BREAKPOINT
+  collapsed.value = isMobile.value
+  window.addEventListener('resize', syncViewport)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', syncViewport)
+})
 
 const isStudent = computed(() => userInfo.value.roleKey === 'student')
 const isTeacher = computed(() => userInfo.value.roleKey === 'teacher')
@@ -167,6 +204,8 @@ loadUserInfo()
 
 watch(() => route.fullPath, () => {
   loadUserInfo()
+  // 移动端点完菜单后自动收起浮层，否则目标页会被侧栏挡住
+  if (isMobile.value) collapsed.value = true
 })
 
 const toggleCollapse = () => {
@@ -286,6 +325,20 @@ const handleUserCommand = async (command) => {
 .sidebar-menu :deep(.el-menu-item.is-active) {
   background: linear-gradient(135deg, #4361ee 0%, #6c83f2 100%);
   color: white;
+}
+
+/* AI 出卷：一级入口，非激活态也给一层极淡的主色底，让它在深色侧栏里被一眼看到 */
+.sidebar-menu :deep(.el-menu-item.highlight-entry) {
+  background-color: rgba(67, 97, 238, 0.14);
+}
+
+.sidebar-menu :deep(.el-menu-item.highlight-entry:hover) {
+  background-color: rgba(67, 97, 238, 0.26);
+}
+
+/* 激活时用统一的渐变，不再叠加淡色底 */
+.sidebar-menu :deep(.el-menu-item.highlight-entry.is-active) {
+  background: linear-gradient(135deg, #4361ee 0%, #6c83f2 100%);
 }
 
 .sidebar-menu :deep(.el-sub-menu .el-menu-item) {
@@ -418,6 +471,20 @@ const handleUserCommand = async (command) => {
   transform: translateY(-10px);
 }
 
+/* ── 移动端侧栏遮罩 ── */
+.sidebar-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 99;
+  background: rgba(15, 18, 26, 0.45);
+  animation: maskFade 0.2s ease;
+}
+
+@keyframes maskFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 @media (max-width: 768px) {
   .sidebar {
     position: fixed;
@@ -427,6 +494,7 @@ const handleUserCommand = async (command) => {
     z-index: 100;
     transform: translateX(0);
     transition: transform var(--transition-normal);
+    box-shadow: var(--shadow-lg);
   }
   .sidebar.collapsed {
     transform: translateX(-100%);
