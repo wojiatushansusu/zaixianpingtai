@@ -6,6 +6,9 @@ import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import App from './App.vue'
 import router from './router'
 import { createPinia } from 'pinia'
+// 顺序要求：global.css 必须在 element-plus/dist/index.css 之后引入。
+// global.css 里的 :root 主题桥接与 Element Plus 默认 :root 选择器同级，
+// 靠的就是后引入取胜。若调换顺序，主题会静默失效。
 import './assets/styles/global.css'
 
 // 导入错误监控工具

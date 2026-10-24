@@ -138,9 +138,10 @@
             </el-tab-pane>
           </el-tabs>
 
-          <div class="login-tips">
+          <!-- 演示账号提示只在开发环境渲染，生产构建里不会出现，避免把测试凭据暴露给线上用户 -->
+          <div v-if="isDev" class="login-tips">
             <el-icon><InfoFilled /></el-icon>
-            <span>测试账号：admin / teacher1 / student1，密码：123456</span>
+            <span>演示账号：admin / teacher1 / student1，密码见 README</span>
           </div>
         </div>
       </div>
@@ -201,6 +202,9 @@ import { login, register, requestResetPassword, resetPassword } from '@/api/auth
 
 const router = useRouter()
 const setToken = inject('setToken')
+
+// 演示账号提示仅在开发环境显示（vite build 时该分支会被静态替换为 false）
+const isDev = import.meta.env.DEV
 
 const activeTab = ref('login')
 const loading = ref(false)

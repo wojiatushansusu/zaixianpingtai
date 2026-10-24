@@ -3,6 +3,7 @@ package com.exam.util;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -17,11 +18,32 @@ import java.util.Map;
 @Component
 public class JwtUtil {
 
+    private static final int MIN_SECRET_BYTES = 32;
+
     @Value("${jwt.secret}")
     private String secret;
 
     @Value("${jwt.expiration}")
     private Long expiration;
+
+    /**
+     * 启动即校验密钥强度，避免运行到第一次登录才抛出难以定位的 WeakKeyException。
+     */
+    @PostConstruct
+    void validateSecret() {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException(
+                    "缺少 JWT_SECRET 环境变量，服务拒绝启动。\n"
+                            + "请设置至少 " + MIN_SECRET_BYTES + " 位随机字符串，例如：\n"
+                            + "  export JWT_SECRET=$(openssl rand -base64 48)");
+        }
+        int length = secret.getBytes(StandardCharsets.UTF_8).length;
+        if (length < MIN_SECRET_BYTES) {
+            throw new IllegalStateException(
+                    "JWT_SECRET 强度不足：当前 " + length + " 字节，至少需要 "
+                            + MIN_SECRET_BYTES + " 字节。");
+        }
+    }
 
     private SecretKey getSigningKey() {
         byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
