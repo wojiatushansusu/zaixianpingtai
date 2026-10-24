@@ -66,7 +66,7 @@ const routes = [
         path: 'self-study',
         name: 'SelfStudyExam',
         component: () => import('@/views/student/SelfStudyExam.vue'),
-        meta: { title: 'AI自助考试', icon: 'MagicStick' }
+        meta: { title: 'AI 出卷', icon: 'MagicStick' }
       }
     ]
   },

@@ -2,7 +2,7 @@
   <div class="self-study-exam">
     <!-- 页面标题 -->
     <div class="page-header">
-      <h2>AI自助考试</h2>
+      <h2>AI 出卷</h2>
       <div class="header-actions">
         <el-button @click="showJoinDialog = true" plain>
           <el-icon><Connection /></el-icon>通过考试码加入
@@ -32,7 +32,7 @@
       <div class="empty-icon">
         <el-icon :size="64"><MagicStick /></el-icon>
       </div>
-      <p v-if="activeTab === 'all'">还没有自助考试，点击右上方按钮让AI帮你生成试卷吧</p>
+      <p v-if="activeTab === 'all'">还没有出过卷，点击右上角让 AI 为你生成一份</p>
       <p v-else>该分类下暂无考试</p>
     </div>
 
@@ -189,7 +189,7 @@
       <div class="join-form">
         <div class="form-tip">
           <el-icon><InfoFilled /></el-icon>
-          <span>输入其他同学分享的6位考试码，加入自助考试</span>
+          <span>输入同学分享的 6 位考试码，加入这场考试</span>
         </div>
         <el-input
           v-model="joinCode"
