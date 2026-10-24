@@ -65,28 +65,27 @@ export CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 
 **方式二：配置文件**
 
-编辑 `backend/src/main/resources/application.yml`：
+`application.yml` 里的敏感项已全部改为环境变量占位，**不要**把真实值写回文件：
 
 ```yaml
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/exam_platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
-    username: root
-    password: 123456  # 开发环境默认密码，生产环境请修改
-  data:
-    redis:
-      host: localhost
-      port: 6379
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:exam_platform}?...
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}          # 必须由环境变量注入
 
-# JWT配置
 jwt:
-  secret: your-very-long-secret-key-here-for-jwt-signing  # 开发环境默认值，生产环境请修改
+  secret: ${JWT_SECRET:}               # 必须由环境变量注入，缺失则服务拒绝启动
 
-# AI相关配置（默认关闭，需启用请改enabled: true）
 app:
   ai:
-    enabled: false
-    default-api-key: ${AI_API_KEY:}
+    default-api-key: ${AI_API_KEY:}    # 可选，enabled: true 时才生效
+```
+
+> ⚠️ **`DB_PASSWORD` 与 `JWT_SECRET` 未设置时后端会启动失败**，这是刻意设计——
+> 宁可启动失败，也不要用弱密钥把一个"看起来能用"的服务跑起来。
+> 需要持久化时复制 `.env.example` 为 `.env`（已被 `.gitignore` 忽略）：
+> `set -a; source .env; set +a`
     default-model: qwen
     default-api-url: ${AI_API_URL:https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions}
 ```

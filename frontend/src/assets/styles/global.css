@@ -11,7 +11,7 @@
   --color-primary-dark: #3249cb;
   --color-primary-bg: #eef1ff;
 
-  /* 功能色 */
+  /* 功能色 — 填充层（500，用于色块/图标/装饰，不承载文字） */
   --color-success: #06d6a0;
   --color-success-bg: #e6faf4;
   --color-warning: #ffd166;
@@ -21,11 +21,18 @@
   --color-info: #118ab2;
   --color-info-bg: #e6f4fa;
 
+  /* 功能色 — 文字层（700，用于文字/描边，白底对比度均 ≥4.5:1）
+     填充色直接当文字用会不可读，两者的职责必须分开 */
+  --color-success-text: #0a7b5f;   /* 5.24:1 */
+  --color-warning-text: #a06a00;   /* 4.62:1 */
+  --color-danger-text: #ce2f52;    /* 5.05:1 */
+  --color-info-text: #0b7599;      /* 5.24:1 */
+
   /* 中性色 */
   --color-text-primary: #1a1d23;
   --color-text-regular: #4a4d55;
-  --color-text-secondary: #8b8f99;
-  --color-text-placeholder: #b8bcc6;
+  --color-text-secondary: #636a76; /* 4.96:1（原 #8b8f99 仅 2.9:1，不达 WCAG AA） */
+  --color-text-placeholder: #a3a8b3;
   --color-border: #e5e7eb;
   --color-border-light: #f0f1f3;
   --color-bg-page: #f3f4f8;
@@ -221,42 +228,10 @@ a {
 }
 
 /* ── 布局样式 ── */
-.app-layout {
-  height: 100vh;
-  overflow: hidden;
-}
-
-.app-header {
-  background: var(--color-bg-card);
-  box-shadow: var(--shadow-sm);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 24px;
-  height: var(--header-height);
-  z-index: 10;
-  position: relative;
-  border-bottom: 1px solid var(--color-border-light);
-}
-
-.app-aside {
-  background: var(--sidebar-bg);
-  transition: width var(--transition-slow);
-  overflow: hidden;
-  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.1);
-  z-index: 20;
-}
-
-.app-aside .el-menu {
-  border-right: none !important;
-}
-
-.app-main {
-  padding: 24px;
-  overflow-y: auto;
-  background: var(--color-bg-page);
-  min-height: 0;
-}
+/* 布局骨架（.layout-container / .sidebar / .main-container / .header）
+   由 views/layout/Layout.vue 的 scoped 样式持有，此处不再重复定义。
+   早期版本的 .app-layout / .app-aside / .app-main 类名在模板中并不存在，
+   已移除，避免后来者误以为样式从这里生效。 */
 
 /* ── 卡片通用样式 ── */
 .page-card {
@@ -375,11 +350,12 @@ a {
 }
 
 .question-item .question-content {
-  font-size: 15px;
+  /* 题干是长时间阅读的主体，16px + 1.7 行高比 14px 正文更耐久 */
+  font-size: 16px;
   margin-bottom: 16px;
   font-weight: 500;
   color: var(--color-text-primary);
-  line-height: 1.6;
+  line-height: 1.7;
 }
 
 .question-item .question-options .el-radio,
@@ -416,55 +392,124 @@ a {
   animation: blink 1s infinite;
 }
 
-/* ── Element Plus 全局覆盖 ── */
+/* ══════════════════════════════════════════════════════════════
+   Element Plus 主题桥接层
+   ──────────────────────────────────────────────────────────────
+   作用：把 Element Plus 的 CSS 变量整体接到本项目的 token 体系上。
+   原则：优先改变量，不写组件选择器；能用一层变量解决的，就不下沉到
+        .el-xxx { color: xxx !important }。
+   light-N = 主色与白色按 N×10% 混合，dark-2 = 主色与黑色按 20% 混合，
+   与 Element Plus 自身的色阶算法保持一致。
+   ══════════════════════════════════════════════════════════════ */
+:root {
+  /* ── 主色 ── */
+  --el-color-primary: var(--color-primary);
+  --el-color-primary-light-3: #7b90f3;
+  --el-color-primary-light-5: #a1b0f7;
+  --el-color-primary-light-7: #c7d0fa;
+  --el-color-primary-light-8: #d9dffc;
+  --el-color-primary-light-9: #eceffd;
+  --el-color-primary-dark-2: var(--color-primary-dark);
+
+  /* ── 功能色：文字用 text 层，底色用 bg 层 ── */
+  --el-color-success: var(--color-success-text);
+  --el-color-success-light-3: #51e2bd;
+  --el-color-success-light-5: #83ebd0;
+  --el-color-success-light-7: #b4f3e3;
+  --el-color-success-light-8: #cdf7ec;
+  --el-color-success-light-9: var(--color-success-bg);
+  --el-color-success-dark-2: #05ab80;
+
+  --el-color-warning: var(--color-warning-text);
+  --el-color-warning-light-3: #ffdf94;
+  --el-color-warning-light-5: #ffe8b3;
+  --el-color-warning-light-7: #fff1d1;
+  --el-color-warning-light-8: #fff6e0;
+  --el-color-warning-light-9: var(--color-warning-bg);
+  --el-color-warning-dark-2: #cca752;
+
+  --el-color-danger: var(--color-danger-text);
+  --el-color-danger-light-3: #f47e9a;
+  --el-color-danger-light-5: #f7a3b7;
+  --el-color-danger-light-7: #fac8d4;
+  --el-color-danger-light-8: #fcdae2;
+  --el-color-danger-light-9: var(--color-danger-bg);
+  --el-color-danger-dark-2: #bf3959;
+
+  --el-color-info: var(--color-info-text);
+  --el-color-info-light-3: #58adc9;
+  --el-color-info-light-5: #88c5d9;
+  --el-color-info-light-7: #b8dce8;
+  --el-color-info-light-8: #cfe8f0;
+  --el-color-info-light-9: var(--color-info-bg);
+  --el-color-info-dark-2: #0e6e8e;
+
+  /* ── 文字 ── */
+  --el-text-color-primary: var(--color-text-primary);
+  --el-text-color-regular: var(--color-text-regular);
+  --el-text-color-secondary: var(--color-text-secondary);
+  --el-text-color-placeholder: var(--color-text-placeholder);
+  --el-text-color-disabled: var(--color-text-placeholder);
+
+  /* ── 边框 ── */
+  --el-border-color: var(--color-border);
+  --el-border-color-light: var(--color-border-light);
+  --el-border-color-lighter: var(--color-border-light);
+  --el-border-color-extra-light: #f7f8fa;
+
+  /* ── 填充与背景 ── */
+  --el-fill-color: #f5f6f8;
+  --el-fill-color-light: #f8f9fb;
+  --el-fill-color-lighter: #fbfcfd;
+  --el-fill-color-blank: var(--color-bg-card);
+  --el-bg-color: var(--color-bg-card);
+  --el-bg-color-page: var(--color-bg-page);
+  --el-bg-color-overlay: var(--color-bg-card);
+
+  /* ── 圆角：与 --radius-* 同源，避免弹窗 4px / 卡片 10px 混用 ── */
+  --el-border-radius-base: var(--radius-md);
+  --el-border-radius-small: var(--radius-sm);
+  --el-border-radius-round: var(--radius-xl);
+  --el-card-border-radius: var(--radius-md);
+
+  /* ── 阴影 ── */
+  --el-box-shadow: var(--shadow-md);
+  --el-box-shadow-light: var(--shadow-sm);
+  --el-box-shadow-lighter: var(--shadow-sm);
+  --el-box-shadow-dark: var(--shadow-lg);
+
+  /* ── 字体 ── */
+  --el-font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
+    'Helvetica Neue', Arial, sans-serif;
+  --el-font-size-base: 14px;
+}
+
+/* ── 结构化覆盖：仅保留变量层表达不了的部分 ── */
 .el-card {
-  border-radius: var(--radius-md) !important;
-  border-color: var(--color-border-light) !important;
+  border-color: var(--color-border-light);
 }
 
-.el-button--primary {
-  --el-button-bg-color: var(--color-primary) !important;
-  --el-button-border-color: var(--color-primary) !important;
-  --el-button-hover-bg-color: var(--color-primary-light) !important;
-  --el-button-hover-border-color: var(--color-primary-light) !important;
-  --el-button-active-bg-color: var(--color-primary-dark) !important;
+/* 主按钮使用渐变以匹配品牌视觉；hover 用亮一档的纯色保证可读 */
+.el-button--primary:not(.is-plain):not(.is-text):not(.is-link) {
+  background-image: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%);
+  border-color: var(--color-primary);
 }
 
-.el-tabs__item.is-active {
-  color: var(--color-primary) !important;
+.el-button--primary:not(.is-plain):not(.is-text):not(.is-link):hover {
+  background-image: linear-gradient(135deg, var(--color-primary-light) 0%, var(--color-primary) 100%);
+  border-color: var(--color-primary-dark);
 }
 
-.el-tabs__active-bar {
-  background-color: var(--color-primary) !important;
-}
-
-.el-menu--horizontal > .el-menu-item.is-active {
-  border-bottom-color: var(--color-primary) !important;
-  color: var(--color-primary) !important;
-}
+/* 侧边栏深色菜单由 Layout.vue 通过 el-menu 的 text-color / active-text-color
+   属性控制，此处不再用选择器二次覆盖，避免与组件内联变量打架。 */
 
 /* ── 响应式 ── */
+/* 注意：侧边栏的移动端抽屉由 Layout.vue 自行接管（fixed + transform + collapsed）。
+   这里【不要】再把 --sidebar-width 改成 0：Layout.vue 中 .sidebar 的宽度就是
+   var(--sidebar-width)，一旦归零，抽屉会被算成 0px 宽，移动端无法展开导航。 */
 @media (max-width: 768px) {
   :root {
-    --sidebar-width: 0px;
     --header-height: 56px;
-  }
-
-  .app-aside {
-    position: fixed;
-    left: -260px;
-    top: 0;
-    bottom: 0;
-    z-index: 100;
-    transition: left var(--transition-slow);
-  }
-
-  .app-aside.is-mobile-open {
-    left: 0;
-  }
-
-  .app-main {
-    padding: 16px;
   }
 
   .login-box {

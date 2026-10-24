@@ -129,7 +129,7 @@ public class AuthController {
     /**
      * 验证码校验 + 重置密码
      * POST /auth/reset-password/reset
-     * 请求体: { "username": "xxx", "code": "123456", "newPassword": "新密码" }
+     * 请求体: { "username": "xxx", "code": "<6位数字验证码>", "newPassword": "新密码" }
      */
     @PostMapping("/reset-password/reset")
     public Result<Void> resetPassword(@RequestBody Map<String, String> params) {

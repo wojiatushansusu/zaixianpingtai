@@ -497,7 +497,10 @@ INSERT INTO `role` (`id`, `role_name`, `role_key`, `description`) VALUES
 (2, '教师', 'teacher', '教师，管理题目、试卷、考试'),
 (3, '学生', 'student', '学生，参加考试、查看成绩');
 
--- 初始化测试用户（密码均为 BCrypt 加密的 123456）
+-- 初始化演示账号（admin / teacher1 / student1 / student2）
+-- ⚠️ 四个账号共用同一个演示密码，仅用于本地调试。
+--    任何对公网开放的部署都必须先重置这些密码或直接删除演示账号，
+--    不要把它们带上线。明文密码见 README 的「测试账号」一节。
 INSERT INTO `user` (`id`, `username`, `password`, `real_name`, `student_no`, `role_id`) VALUES
 (1, 'admin', '$2a$10$vTHfrCARHh8b5nv4UDoC4.HZuCopkiYq1rmNXb97hCbyD/h7Kk6Wa', '管理员', NULL, 1),
 (2, 'teacher1', '$2a$10$vTHfrCARHh8b5nv4UDoC4.HZuCopkiYq1rmNXb97hCbyD/h7Kk6Wa', '张老师', 'T001', 2),
