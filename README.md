@@ -1,5 +1,7 @@
 # 在线考试平台
 
+[![CI](https://github.com/wojiatushansusu/zaixianpingtai/actions/workflows/ci.yml/badge.svg)](https://github.com/wojiatushansusu/zaixianpingtai/actions/workflows/ci.yml)
+
 面向高校与培训场景的在线考试系统。学生用一句自然语言就能出卷，生成考试码拉同学来考；教师侧有组卷、监考、批改的完整闭环。
 
 ## 它解决什么
