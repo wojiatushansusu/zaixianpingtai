@@ -16,6 +16,13 @@
 **1. AI 出卷**
 自然语言描述考试需求 → 大模型生成试卷 → 产出 6 位考试码 → 同学凭码加入。支持自助重考，同一份卷子可以反复练。
 
+生成结果不会直接入库，中间有两道关卡：
+
+- **结构校验**（`AiQuestionValidator`）：选项缺失或重复、答案字母越界、单选多答、判断题答案不在 A/B、题干占位符与重复，一律剔除；剔除比例过高时自动带约束提示重试一次。
+- **答案自检**（`AnswerSelfCheckService`）：把题目隐去答案再让模型做一遍，与它先前声明的答案比对，不一致的题标记为「存疑」。
+
+这两道关卡只能降低出错概率，**不能证明答案正确**。刻意保留人工判断入口，而不是假装 AI 永远是对的。
+
 **2. 监考与防作弊**
 分层落地：前端切屏检测与复制限制、`face-api.js` 人脸核验、多人脸与头部姿态告警、后端切屏次数原子更新与超限自动交卷、Redis 分布式锁防重复提交、WebSocket 实时帧传输 + 监控大屏 + 视频证据留存。
 
@@ -25,6 +32,24 @@
 此外教师侧包含题库 CRUD（EasyExcel 批量导入，兼容 30+ 列名别名）、贪心算法智能组卷（按题型比例 / 难度分布 / 知识点约束）、主观题逐题批注、成绩分析（分布图、题目区分度、Cronbach's α 信度）。
 
 ## 快速开始
+
+### 方式一：Docker（推荐）
+
+只需 Docker，不必装 JDK / Node / MySQL / Redis：
+
+```bash
+git clone https://github.com/wojiatushansusu/zaixianpingtai.git
+cd zaixianpingtai
+cp .env.example .env        # 填好 DB_PASSWORD 与 JWT_SECRET
+docker compose up -d --build
+```
+
+首次启动会自动建表并写入演示数据。打开 http://localhost:8088 即可。
+
+> 首次构建要拉取镜像并编译前后端，耗时数分钟属正常。
+> `DB_PASSWORD` / `JWT_SECRET` 未填时 compose 会直接报错退出——和本地启动一样，不许用弱密钥跑起来。
+
+### 方式二：本地运行
 
 **环境要求**：JDK 21+、Maven 3.8+、Node.js 18+、MySQL 8.0+、Redis 6.0+
 
@@ -105,7 +130,7 @@ cd frontend && npm install && npm run dev          # :5173
 
 诚实列出，比藏着好：
 
-- **自动化测试薄弱**：仅 `GradingLogicTest` 覆盖批改逻辑（26 个用例），接口与前端无测试。
+- **自动化测试仍不完整**：`AiQuestionValidator` 与 `AnswerSelfCheckService` 有完整单测（26 个用例），但接口层与前端仍无测试。另外 `GradingLogicTest` 断言的是测试文件内自带的逻辑副本，**对生产代码无实际覆盖**，属于历史遗留，建议后续替换为对 `ExamService` 的真实测试。
 - **单机部署**：未做水平扩展，`uploads/` 与视频证据存本地磁盘，多实例需改造为对象存储。
 - **前端单文件偏大**：`StudentExams.vue` 等页面尚未拆分组件，改动时注意影响面。
 - **无 API 文档**：未集成 springdoc，接口以 controller 代码为准。

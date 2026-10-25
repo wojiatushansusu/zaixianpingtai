@@ -127,14 +127,15 @@ class GradingLogicTest {
 
         @Test
         void expiredExamReturnsZero() {
-            long remainingSecs = calculateRemainingMinutes(60, -10);
+            // elapsed 超过 duration 才是真正超时；原先传 -10 表示"提前 10 分钟开始"，语义相反
+            long remainingSecs = calculateRemainingMinutes(60, 70);
             // 已超时
             assertTrue(remainingSecs <= 0);
         }
 
         @Test
         void justStartedFullTime() {
-            long remainingSecs = calculateRemainingMinutes(60, 59);
+            long remainingSecs = calculateRemainingMinutes(60, 1);
             // 刚开始，接近满时长
             assertTrue(remainingSecs > 3000); // 至少50分钟
         }

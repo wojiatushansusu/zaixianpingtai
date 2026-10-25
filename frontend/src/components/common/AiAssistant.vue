@@ -672,10 +672,26 @@ function scrollToBottom() {
   }, 50)
 }
 
+/**
+ * 轻量 Markdown 渲染：只支持 **加粗** 与换行。
+ *
+ * 模型输出是外部输入，绝不能直接塞进 innerHTML——否则返回一段
+ * <img src=x onerror=...> 就会在本页执行。这里先整体转义，再叠加我们
+ * 自己生成的安全标签，顺序不能反。
+ */
+function escapeHtml(text) {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 function formatContent(text) {
   if (!text) return ''
-  return text
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+  return escapeHtml(String(text))
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\n/g, '<br>')
 }
 
