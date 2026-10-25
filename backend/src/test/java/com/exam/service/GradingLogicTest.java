@@ -1,316 +1,257 @@
 package com.exam.service;
 
-import com.exam.pojo.Question;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
-
-import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 纯Java工具类测试（无需Spring容器）
- * 覆盖评分逻辑、答案比较等核心算法
+ * 判分规则测试。
+ *
+ * <p><b>这个文件的前身是一个「假测试」</b>：里面的 calculateRemainingMinutes、calcViolationScore
+ * 等方法全部定义在测试类内部，断言的是测试自己抄的一份逻辑副本，对生产代码零覆盖。
+ *
+ * <p>现在测试对象换成了真实的生产类 {@link ScoringRules}——它由 {@code ExamService#autoGrade}
+ * 与 {@code ExamService#calculateViolationScore} 直接调用，规则改坏了这里一定会红。
+ *
+ * <p>顺带覆盖了旧实现里三个真实缺陷，见各用例注释。
  */
 class GradingLogicTest {
 
-    // ==================== 单选题评分测试 ====================
+    private static final int FULL_SCORE = 10;
+
+    private ScoringRules.GradeResult grade(int type, String correct, String student) {
+        return ScoringRules.gradeObjective(type, correct, student, FULL_SCORE);
+    }
+
+    // ==================== 单选题 ====================
 
     @Nested
     class SingleChoiceGrading {
+
         @Test
-        void correctAnswerShouldScore() {
-            assertTrue(isSingleChoiceCorrect("A", "A"));
-            assertTrue(isSingleChoiceCorrect("B", "B"));
-            assertTrue(isSingleChoiceCorrect("C", "C"));
-            assertTrue(isSingleChoiceCorrect("D", "D"));
+        @DisplayName("答案一致得满分")
+        void correctAnswerGetsFullScore() {
+            ScoringRules.GradeResult r = grade(ScoringRules.TYPE_SINGLE, "B", "B");
+            assertTrue(r.autoGraded());
+            assertTrue(r.correct());
+            assertEquals(FULL_SCORE, r.score());
         }
 
         @Test
-        void wrongAnswerShouldNotScore() {
-            assertFalse(isSingleChoiceCorrect("A", "B"));
-            assertFalse(isSingleChoiceCorrect("B", "A"));
-            assertFalse(isSingleChoiceCorrect("A", ""));
+        @DisplayName("答案不一致得零分")
+        void wrongAnswerGetsZero() {
+            ScoringRules.GradeResult r = grade(ScoringRules.TYPE_SINGLE, "B", "C");
+            assertTrue(r.autoGraded());
+            assertFalse(r.correct());
+            assertEquals(0, r.score());
         }
 
         @Test
-        void caseInsensitiveComparison() {
-            assertTrue(isSingleChoiceCorrect("a", "A"));
-            assertTrue(isSingleChoiceCorrect("b", "B"));
+        @DisplayName("大小写与首尾空白不影响判分")
+        void caseAndWhitespaceIgnored() {
+            assertTrue(grade(ScoringRules.TYPE_SINGLE, "a", "  A ").correct());
+        }
+
+        @Test
+        @DisplayName("脏数据容忍：答案带标点也能判对")
+        void punctuationTolerated() {
+            // 旧实现用字符串精准相等，"A、" 会被判错
+            assertTrue(grade(ScoringRules.TYPE_SINGLE, "A", "A、").correct());
+            assertTrue(grade(ScoringRules.TYPE_SINGLE, "A.", "A").correct());
+        }
+
+        @Test
+        @DisplayName("单选作答多个选项判错")
+        void multiLettersOnSingleQuestionIsWrong() {
+            assertFalse(grade(ScoringRules.TYPE_SINGLE, "A", "A,B").correct());
+            assertFalse(grade(ScoringRules.TYPE_SINGLE, "A,B", "A").correct());
+        }
+
+        @Test
+        @DisplayName("空答案与 null 判错且不抛异常")
+        void blankAnswerIsWrong() {
+            assertFalse(grade(ScoringRules.TYPE_SINGLE, "A", "").correct());
+            assertFalse(grade(ScoringRules.TYPE_SINGLE, "A", null).correct());
+            assertFalse(grade(ScoringRules.TYPE_SINGLE, "   ", "A").correct());
+            assertFalse(grade(ScoringRules.TYPE_SINGLE, null, "A").correct());
         }
     }
 
-    // ==================== 多选题评分测试（排序后比较） ====================
+    // ==================== 多选题 ====================
 
     @Nested
     class MultiChoiceGrading {
+
         @Test
-        void correctOrderShouldMatch() {
-            String student = "A,B,C";
-            String correct = "A,B,C";
-            assertTrue(isMultiChoiceCorrect(student, correct));
+        @DisplayName("完全一致得满分")
+        void exactMatchGetsFullScore() {
+            ScoringRules.GradeResult r = grade(ScoringRules.TYPE_MULTI, "A,B", "A,B");
+            assertTrue(r.correct());
+            assertEquals(FULL_SCORE, r.score());
         }
 
         @Test
-        void differentOrderShouldMatchAfterSort() {
-            // 学生选了 B,A，正确答案是 A,B → 排序后应一致
-            String student = "B,A";
-            String correct = "A,B";
-            assertTrue(isMultiChoiceCorrect(student, correct));
+        @DisplayName("顺序不同不影响结果")
+        void orderIndependent() {
+            assertTrue(grade(ScoringRules.TYPE_MULTI, "A,B", "B,A").correct());
+            assertTrue(grade(ScoringRules.TYPE_MULTI, "A,B,C", "C,A,B").correct());
         }
 
         @Test
-        void extraOptionsShouldNotMatch() {
-            assertFalse(isMultiChoiceCorrect("A,B,C", "A,B"));
+        @DisplayName("带空格的答案也能判对（旧实现的缺陷）")
+        void spacesBetweenLettersTolerated() {
+            // 旧实现 split(",") 后逐项比较，"A, B" 得到 ["A"," B"]，" B" != "B" → 误判为错
+            assertTrue(grade(ScoringRules.TYPE_MULTI, "A,B", "A, B").correct());
+            assertTrue(grade(ScoringRules.TYPE_MULTI, "A, B", "B,A").correct());
+            assertTrue(grade(ScoringRules.TYPE_MULTI, "A,B", "AB").correct());
         }
 
         @Test
-        void missingOptionsShouldNotMatch() {
-            assertFalse(isMultiChoiceCorrect("A,B", "A,B,C"));
+        @DisplayName("漏选判错（保持全对才得分的原规则）")
+        void missingOneOptionIsWrong() {
+            ScoringRules.GradeResult r = grade(ScoringRules.TYPE_MULTI, "A,B", "A");
+            assertFalse(r.correct());
+            assertEquals(0, r.score());
         }
 
         @Test
-        void emptyAnswerShouldNotMatch() {
-            assertFalse(isMultiChoiceCorrect("", "A,B"));
+        @DisplayName("多选判错")
+        void extraOptionIsWrong() {
+            assertFalse(grade(ScoringRules.TYPE_MULTI, "A,B", "A,B,C").correct());
+        }
+
+        @Test
+        @DisplayName("重复字母按集合去重后比较")
+        void duplicateLettersIgnored() {
+            assertTrue(grade(ScoringRules.TYPE_MULTI, "A,B", "A,A,B").correct());
+        }
+
+        @Test
+        @DisplayName("全选但与标准答案不符判错")
+        void allOptionsSelectedIsWrongUnlessExpected() {
+            assertFalse(grade(ScoringRules.TYPE_MULTI, "A,B", "A,B,C,D").correct());
         }
     }
 
-    // ==================== 判断题评分测试 ====================
+    // ==================== 判断题 ====================
 
     @Nested
     class JudgeChoiceGrading {
+
         @Test
-        void trueAnswerShouldMatch() {
-            assertTrue(isJudgeCorrect("A", "true") || isJudgeCorrect("TRUE", "true"));
-            assertTrue(isJudgeCorrect("B", "false") || isJudgeCorrect("FALSE", "false"));
+        @DisplayName("A 表示正确，答 A 得分")
+        void answerATrue() {
+            assertTrue(grade(ScoringRules.TYPE_JUDGE, "A", "A").correct());
         }
 
         @Test
-        void wrongAnswerShouldNotMatch() {
-            assertFalse(isJudgeCorrect("A", "false"));
-            assertFalse(isJudgeCorrect("B", "true"));
+        @DisplayName("答反了不得分")
+        void oppositeIsWrong() {
+            ScoringRules.GradeResult r = grade(ScoringRules.TYPE_JUDGE, "A", "B");
+            assertFalse(r.correct());
+            assertEquals(0, r.score());
+        }
+
+        @Test
+        @DisplayName("判断题不允许多个答案")
+        void multipleLettersIsWrong() {
+            assertFalse(grade(ScoringRules.TYPE_JUDGE, "A", "A,B").correct());
         }
     }
 
-    // ==================== 难度等级测试 ====================
+    // ==================== 简答题 ====================
 
     @Nested
-    class DifficultyLevel {
+    class ShortAnswerGrading {
+
         @Test
-        void validDifficultyLevels() {
-            assertEquals(1, getDifficultyLabel(1));  // 简单
-            assertEquals(2, getDifficultyLabel(2));  // 中等
-            assertEquals(3, getDifficultyLabel(3));  // 困难
+        @DisplayName("简答题永不自动判分（即使配了参考答案）")
+        void neverAutoGraded() {
+            // 旧实现只在参考答案为 null 时跳过；一旦老师填了参考答案，
+            // 就会拿学生答案做字符串精确比较，几乎必然判 0 分。
+            ScoringRules.GradeResult r = grade(ScoringRules.TYPE_SHORT_ANSWER, "示例答案", "示例答案");
+            assertFalse(r.autoGraded());
+            assertFalse(r.correct());
+            assertEquals(0, r.score());
         }
 
         @Test
-        void invalidDifficultyDefaultsToMedium() {
-            assertEquals(2, getDifficultyLabel(0));
-            assertEquals(2, getDifficultyLabel(4));
-            assertEquals(2, getDifficultyLabel(-1));
-        }
-    }
-
-    // ==================== 剩余时间计算测试 ====================
-
-    @Nested
-    class RemainingTimeCalculation {
-
-        @Test
-        void positiveRemainingTime() {
-            long remainingSecs = calculateRemainingMinutes(60, 30);
-            // 应该返回剩余秒数（取min值）
-            assertTrue(remainingSecs > 0);
-            assertTrue(remainingSecs <= 1800); // 不超过60分钟
-        }
-
-        @Test
-        void expiredExamReturnsZero() {
-            // elapsed 超过 duration 才是真正超时；原先传 -10 表示"提前 10 分钟开始"，语义相反
-            long remainingSecs = calculateRemainingMinutes(60, 70);
-            // 已超时
-            assertTrue(remainingSecs <= 0);
-        }
-
-        @Test
-        void justStartedFullTime() {
-            long remainingSecs = calculateRemainingMinutes(60, 1);
-            // 刚开始，接近满时长
-            assertTrue(remainingSecs > 3000); // 至少50分钟
+        @DisplayName("简答题没有参考答案时同样不判分")
+        void notAutoGradedWithoutReference() {
+            assertFalse(grade(ScoringRules.TYPE_SHORT_ANSWER, null, "随便写点").autoGraded());
         }
     }
 
-    // ==================== 违规扣分计算测试 ====================
+    // ==================== 违规扣分 ====================
 
     @Nested
     class ViolationScoring {
 
         @Test
-        void switchScreenPenaltyIncreasesWithSeverity() {
-            int score1 = calcViolationScore("switch_screen", 1); // 5
-            int score2 = calcViolationScore("switch_screen", 2); // 10
-            int score3 = calcViolationScore("switch_screen", 3); // 15
-            assertTrue(score1 < score2);
-            assertTrue(score2 < score3);
+        @DisplayName("各违规类型的基础分值符合约定")
+        void baseScores() {
+            assertEquals(5, ScoringRules.violationScore("switch_screen", 1));
+            assertEquals(10, ScoringRules.violationScore("no_face", 1));
+            assertEquals(15, ScoringRules.violationScore("multi_face", 1));
+            assertEquals(3, ScoringRules.violationScore("look_away", 1));
+            assertEquals(20, ScoringRules.violationScore("forbidden_item", 1));
+            assertEquals(5, ScoringRules.violationScore("keyboard_violation", 1));
         }
 
         @Test
-        void forbiddenItemHasHighestPenalty() {
-            int switchScore = calcViolationScore("switch_screen", 1);
-            int forbidScore = calcViolationScore("forbidden_item", 1);
-            assertTrue(forbidScore > switchScore); // 20 > 5
+        @DisplayName("严重度线性放大")
+        void severityScalesLinearly() {
+            assertEquals(15, ScoringRules.violationScore("switch_screen", 3));
+            assertEquals(30, ScoringRules.violationScore("no_face", 3));
         }
 
         @Test
-        void lookAwayLowestPenalty() {
-            int lookAway = calcViolationScore("look_away", 1);
-            int multiFace = calcViolationScore("multi_face", 1);
-            assertTrue(multiFace > lookAway); // 15 > 3
+        @DisplayName("替考嫌疑是固定分值，不随严重度放大")
+        void impersonationIsFixed() {
+            assertEquals(15, ScoringRules.violationScore("face_position_changed", 1));
+            assertEquals(15, ScoringRules.violationScore("face_position_changed", 5));
+        }
+
+        @Test
+        @DisplayName("未知类型与 null 走默认档位")
+        void unknownTypeFallsBack() {
+            assertEquals(6, ScoringRules.violationScore("unknown_type", 2));
+            assertEquals(3, ScoringRules.violationScore(null, 1));
+        }
+
+        @Test
+        @DisplayName("严重度为 0 或负数时按 1 处理，避免扣 0 分")
+        void invalidSeverityClampedToOne() {
+            assertEquals(5, ScoringRules.violationScore("switch_screen", 0));
+            assertEquals(5, ScoringRules.violationScore("switch_screen", -3));
         }
     }
 
-    // ==================== 统计计算测试 ====================
+    // ==================== 答案解析 ====================
 
     @Nested
-    class StatisticsCalculation {
+    class AnswerNormalization {
 
         @Test
-        void passRateCalculation() {
-            List<Integer> scores = Arrays.asList(80, 90, 45, 60, 75);
-            double passRate = calculatePassRate(scores, 60);
-            // 及格的: 80,90,60,75 = 4/5 = 80%
-            assertEquals(0.8, passRate, 0.01);
-        }
-
-        @Test
-        void averageScoreCalculation() {
-            List<Integer> scores = Arrays.asList(80, 90, 100);
-            double avg = scores.stream().mapToInt(Integer::intValue).average().orElse(0);
-            assertEquals(90.0, avg, 0.01);
+        @DisplayName("兼容逗号、中文逗号、顿号、分号")
+        void delimiterVariants() {
+            assertEquals(2, ScoringRules.toLetterSet("A,B").size());
+            assertEquals(2, ScoringRules.toLetterSet("A，B").size());
+            assertEquals(2, ScoringRules.toLetterSet("A、B").size());
+            assertEquals(2, ScoringRules.toLetterSet("A;B").size());
         }
 
         @Test
-        void emptyScoresZeroAverage() {
-            List<Integer> scores = Collections.emptyList();
-            double avg = scores.stream().mapToInt(Integer::intValue).average().orElse(0);
-            assertEquals(0.0, avg);
+        @DisplayName("非字母字符被忽略")
+        void nonLettersIgnored() {
+            assertTrue(ScoringRules.toLetterSet("A").contains("A"));
+            assertTrue(ScoringRules.toLetterSet("  A  ").contains("A"));
+            assertTrue(ScoringRules.toLetterSet("1").isEmpty());
+            assertTrue(ScoringRules.toLetterSet(null).isEmpty());
         }
-
-        @Test
-        void medianEvenCount() {
-            List<Integer> scores = Arrays.asList(60, 70, 80, 90);
-            double median = calculateMedian(scores);
-            assertEquals(75.0, median, 0.01); // (70+80)/2
-        }
-
-        @Test
-        void medianOddCount() {
-            List<Integer> scores = Arrays.asList(60, 70, 90);
-            double median = calculateMedian(scores);
-            assertEquals(70.0, median, 0.01); // 中间值
-        }
-    }
-
-    // ==================== 答案解析/清理测试 ====================
-
-    @Nested
-    class AnswerParsing {
-
-        @Test
-        void trimAndUppercaseStudentAnswer() {
-            String raw = " a ";
-            String cleaned = normalizeAnswer(raw);
-            assertEquals("A", cleaned);
-        }
-
-        @Test
-        void nullAnswerHandling() {
-            String result = normalizeAnswer(null);
-            assertNull(result);
-        }
-
-        @Test
-        void splitMultiChoiceAnswer() {
-            String answer = "A,B,C";
-            String[] parts = answer.split(",");
-            assertArrayEquals(new String[]{"A", "B", "C"}, parts);
-        }
-    }
-
-    // ════════════════════════════════════════════════
-    // 模拟业务逻辑的纯函数（从Service中提取的核心算法）
-    // ════════════════════════════════════════════════
-
-    private boolean isSingleChoiceCorrect(String student, String correct) {
-        if (student == null || correct == null) return false;
-        return student.trim().equalsIgnoreCase(correct.trim());
-    }
-
-    private boolean isMultiChoiceCorrect(String student, String correct) {
-        if (student == null || correct == null) return false;
-        String[] sArr = student.trim().toUpperCase().split(",");
-        String[] cArr = correct.trim().toUpperCase().split(",");
-        if (sArr.length != cArr.length) return false;
-        java.util.Arrays.sort(sArr);
-        java.util.Arrays.sort(cArr);
-        return java.util.Arrays.equals(sArr, cArr);
-    }
-
-    private boolean isJudgeCorrect(String student, String correct) {
-        if (student == null || correct == null) return false;
-        String s = student.trim().toUpperCase();
-        String c = correct.trim().toLowerCase();
-        if ("A".equals(s)) return "true".equals(c);
-        if ("B".equals(s)) return "false".equals(c);
-        return s.equals(c.toUpperCase());
-    }
-
-    private int getDifficultyLabel(int difficulty) {
-        return switch (difficulty) {
-            case 1 -> 1; // 简单
-            case 2 -> 2; // 中等
-            case 3 -> 3; // 困难
-            default -> 2; // 默认中等
-        };
-    }
-
-    private long calculateRemainingMinutes(int durationMin, int elapsedMin) {
-        long totalSeconds = (long) durationMin * 60;
-        long elapsedSeconds = (long) elapsedMin * 60;
-        return Math.max(0, totalSeconds - elapsedSeconds);
-    }
-
-    private int calcViolationScore(String type, int severity) {
-        return switch (type) {
-            case "switch_screen" -> 5 * severity;
-            case "no_face" -> 10 * severity;
-            case "multi_face" -> 15 * severity;
-            case "look_away" -> 3 * severity;
-            case "forbidden_item" -> 20 * severity;
-            default -> severity * 3;
-        };
-    }
-
-    private double calculatePassRate(List<Integer> scores, int passScore) {
-        if (scores == null || scores.isEmpty()) return 0.0;
-        long passed = scores.stream().filter(s -> s >= passScore).count();
-        return (double) passed / scores.size();
-    }
-
-    private double calculateMedian(List<Integer> sortedList) {
-        List<Integer> list = new ArrayList<>(sortedList);
-        Collections.sort(list);
-        int size = list.size();
-        if (size % 2 == 0) {
-            return (list.get(size / 2 - 1) + list.get(size / 2)) / 2.0;
-        } else {
-            return list.get(size / 2);
-        }
-    }
-
-    private String normalizeAnswer(String answer) {
-        if (answer == null) return null;
-        return answer.trim().toUpperCase();
     }
 }

@@ -130,7 +130,7 @@ cd frontend && npm install && npm run dev          # :5173
 
 诚实列出，比藏着好：
 
-- **自动化测试仍不完整**：`AiQuestionValidator` 与 `AnswerSelfCheckService` 有完整单测（26 个用例），但接口层与前端仍无测试。另外 `GradingLogicTest` 断言的是测试文件内自带的逻辑副本，**对生产代码无实际覆盖**，属于历史遗留，建议后续替换为对 `ExamService` 的真实测试。
+- **自动化测试仍不完整**：判分规则（`ScoringRules`）、AI 题目结构校验（`AiQuestionValidator`）、答案自检（`AnswerSelfCheckService`）均有单测，共 51 个用例；但接口层与前端仍无测试。
 - **单机部署**：未做水平扩展，`uploads/` 与视频证据存本地磁盘，多实例需改造为对象存储。
 - **前端单文件偏大**：`StudentExams.vue` 等页面尚未拆分组件，改动时注意影响面。
 - **无 API 文档**：未集成 springdoc，接口以 controller 代码为准。

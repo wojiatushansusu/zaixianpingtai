@@ -451,16 +451,7 @@ public class ExamService {
      * forbidden_item: 每次扣20分
      */
     private int calculateViolationScore(String violationType, int severity) {
-        switch (violationType) {
-            case "switch_screen": return 5 * severity;
-            case "no_face": return 10 * severity;
-            case "multi_face": return 15 * severity;
-            case "look_away": return 3 * severity;
-            case "forbidden_item": return 20 * severity;
-            case "keyboard_violation": return 5 * severity;
-            case "face_position_changed": return 15;  // 替考嫌疑
-            default: return severity * 3;
-        }
+        return ScoringRules.violationScore(violationType, severity);
     }
 
     /**
@@ -544,42 +535,14 @@ public class ExamService {
             int questionScore = 0;
             boolean isCorrect = false;
 
-            if (answerRecord != null && answerRecord.getStudentAnswer() != null && question != null) {
-                String studentAnswer = answerRecord.getStudentAnswer().trim().toUpperCase();
-                // BUG-07修复：correctAnswer 可能为 null（简答题/未设置答案），加空值保护
-                if (question.getAnswer() == null) {
-                    // 简答题等没有标准答案的题目，跳过自动评分
-                    if (answerRecord != null) {
-                        answerRecord.setIsCorrect(0);
-                        answerRecord.setScore(0);
-                        answerRecordMapper.updateById(answerRecord);
-                    }
-                    continue;
-                }
-                String correctAnswer = question.getAnswer().trim().toUpperCase();
-
-                // 根据题目类型区分评分逻辑
-                int qType = question.getType() != null ? question.getType() : 1;
-
-                if (qType == 2) {
-                    // 多选题（type=2）：排序后比较，允许多种顺序
-                    String[] sArr = studentAnswer.split(",");
-                    String[] cArr = correctAnswer.split(",");
-                    if (sArr.length == cArr.length) {
-                        java.util.Arrays.sort(sArr);
-                        java.util.Arrays.sort(cArr);
-                        if (java.util.Arrays.equals(sArr, cArr)) {
-                            isCorrect = true;
-                            questionScore = pq.getScore();
-                        }
-                    }
-                } else {
-                    // 单选题（type=1）和判断题（type=3）：精确匹配
-                    if (studentAnswer.equals(correctAnswer)) {
-                        isCorrect = true;
-                        questionScore = pq.getScore();
-                    }
-                }
+            if (answerRecord != null && question != null) {
+                // 判分规则统一收敛到 ScoringRules，便于单测；本方法只负责取数与落库
+                int qType = question.getType() != null ? question.getType() : ScoringRules.TYPE_SINGLE;
+                int fullScore = pq.getScore() != null ? pq.getScore() : 0;
+                ScoringRules.GradeResult result = ScoringRules.gradeObjective(
+                        qType, question.getAnswer(), answerRecord.getStudentAnswer(), fullScore);
+                questionScore = result.score();
+                isCorrect = result.correct();
             }
 
             totalScore += questionScore;
