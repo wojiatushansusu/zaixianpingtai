@@ -276,34 +276,8 @@
       </template>
     </el-dialog>
 
-    <!-- ===== 历史成绩对话框 ===== -->
-    <el-dialog v-model="showScoresDialog" title="历史成绩" width="520px">
-      <div v-loading="loadingScores">
-        <el-empty v-if="!loadingScores && examScores.length === 0" description="暂无成绩记录" />
-        <div v-else class="scores-list">
-          <div v-for="item in examScores" :key="item.recordId" class="score-item">
-            <div class="score-header">
-              <span class="score-attempt">第 {{ item.attemptNo }} 次</span>
-              <el-tag :type="item.isPassed ? 'success' : 'danger'" size="small" effect="dark">
-                {{ item.isPassed ? '及格' : '未及格' }}
-              </el-tag>
-            </div>
-            <div class="score-body">
-              <div class="score-value" :class="{ pass: item.isPassed }">
-                {{ item.score }}<span class="score-total">/{{ item.totalScore }}</span>
-              </div>
-              <div class="score-meta">
-                <span>{{ item.statusText }}</span>
-                <span>{{ item.submitTime }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <template #footer>
-        <el-button @click="showScoresDialog = false">关闭</el-button>
-      </template>
-    </el-dialog>
+    <!-- ===== 历史成绩对话框（已抽为独立组件） ===== -->
+    <ExamScoresDialog v-model="showScoresDialog" :exam="currentScoreExam" />
   </div>
 </template>
 
@@ -311,11 +285,11 @@
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getMyExams, getMyExamRecords } from '@/api/exam'
-import { getExamScores } from '@/api/selfStudyExam'
+import { getMyExams } from '@/api/exam'
 import { verifyFace, getRegistrationPhoto } from '@/api/face'
 import openCVHelper from '@/utils/openCVHelper'
 import faceApiHelper from '@/utils/faceApiHelper'
+import ExamScoresDialog from '@/components/exam/ExamScoresDialog.vue'
 import { isSubmitted, getStatusClass, getStatusText, getStatusTagType, canStartExam, parseExamTime, getCannotStartReason, getButtonPrimaryType, getButtonText } from '@/utils/examStatus'
 
 const router = useRouter()
@@ -413,10 +387,9 @@ const allActionsDone = computed(() => {
   return requiredActions.value.length > 0 && requiredActions.value.every(a => completedActions.value.has(a.key))
 })
 
-// 历史成绩
+// 历史成绩（数据加载已移入 ExamScoresDialog，此处只记录选中的考试）
 const showScoresDialog = ref(false)
-const examScores = ref([])
-const loadingScores = ref(false)
+const currentScoreExam = ref(null)
 
 onMounted(() => loadData())
 onBeforeUnmount(() => stopVerifyCamera())
@@ -589,23 +562,9 @@ function getActionClass(actionKey) {
 }
 
 // ====== 历史成绩 ======
-async function handleViewScores(exam) {
+function handleViewScores(exam) {
+  currentScoreExam.value = exam
   showScoresDialog.value = true
-  loadingScores.value = true
-  examScores.value = []
-  try {
-    if (exam.selfStudyExamId) {
-      const res = await getExamScores(exam.selfStudyExamId)
-      examScores.value = res.data || []
-    } else {
-      const res = await getMyExamRecords(exam.id)
-      examScores.value = res.data || []
-    }
-  } catch (e) {
-    ElMessage.error('获取成绩记录失败')
-  } finally {
-    loadingScores.value = false
-  }
 }
 
 function goToProfile() { faceVerifyVisible.value = false; router.push('/profile') }
@@ -1729,15 +1688,6 @@ window.addEventListener('beforeunload', () => {
 }
 
 /* ── 历史成绩对话框 ── */
-.scores-list { display: flex; flex-direction: column; gap: 12px; max-height: 460px; overflow-y: auto; padding-right: 4px; }
-.score-item { background: var(--color-bg-page, #f5f7fa); border-radius: var(--radius-md); padding: 14px 16px; }
-.score-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-.score-attempt { font-weight: 600; color: var(--color-text-primary); }
-.score-body { display: flex; align-items: center; justify-content: space-between; }
-.score-value { font-size: 28px; font-weight: 700; color: var(--color-text-secondary); }
-.score-value.pass { color: var(--color-success, #67c23a); }
-.score-total { font-size: 16px; font-weight: 400; color: var(--color-text-placeholder); margin-left: 2px; }
-.score-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; font-size: 13px; color: var(--color-text-secondary); }
 
 /* ── 响应式 ── */
 @media (max-width: 768px) {
