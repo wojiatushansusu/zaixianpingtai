@@ -47,13 +47,15 @@ public class SecurityConfig {
             // 请求授权
             .authorizeHttpRequests(auth -> auth
                 // 放行接口
+                // 注意：/files/** 与 /uploads/** 曾被放行，但 WebMvcConfig 把 /files/** 映射到了
+                // 本地 uploads 目录，而监考视频证据、人脸图片正好落在该目录下——等于任何人
+                // 拿到 URL 就能直接下载考生的影像资料。这两个前缀已移出白名单，改为需登录访问。
+                // 头像走的是 FileController 的 /files/avatar/me（数据库存储），不受影响。
                 .requestMatchers(
                     "/auth/login",
                     "/auth/register",
                     "/auth/logout",
                     "/ws/**",
-                    "/files/**",
-                    "/uploads/**",
                     "/ai-assistant/status",
                     "/auth/reset-password/**"
                 ).permitAll()
