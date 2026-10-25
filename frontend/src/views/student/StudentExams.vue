@@ -316,6 +316,7 @@ import { getExamScores } from '@/api/selfStudyExam'
 import { verifyFace, getRegistrationPhoto } from '@/api/face'
 import openCVHelper from '@/utils/openCVHelper'
 import faceApiHelper from '@/utils/faceApiHelper'
+import { isSubmitted, getStatusClass, getStatusText, getStatusTagType, canStartExam, parseExamTime, getCannotStartReason, getButtonPrimaryType, getButtonText } from '@/utils/examStatus'
 
 const router = useRouter()
 const loading = ref(false)
@@ -459,139 +460,6 @@ function updateTabCounts() {
     return now >= start && now <= end && e.submitStatus === '0'
   }).length
   tabs.value[1].count = activeCount
-}
-
-function isSubmitted(exam) { return exam.submitStatus !== '0' }
-
-function getStatusClass(exam) {
-  const text = getStatusText(exam)
-  if (text === '进行中') return 'active'
-  if (text === '未开始') return 'upcoming'
-  if (text === '已提交') return 'submitted'
-  if (text === '自动提交') return 'auto'
-  return 'ended'
-}
-
-function getStatusText(exam) {
-  const now = new Date()
-  const start = new Date(exam.startTime)
-  const end = new Date(exam.endTime)
-  if (exam.submitStatus !== '0') return exam.submitStatus === '1' ? '已提交' : '自动提交'
-  if (now < start) return '未开始'
-  if (now > end) return '已结束'
-  return '进行中'
-}
-
-function getStatusTagType(exam) {
-  const text = getStatusText(exam)
-  if (text === '进行中') return 'success'
-  if (text === '未开始') return 'info'
-  if (text === '已提交' || text === '自动提交') return 'warning'
-  return 'danger'
-}
-
-function canStartExam(exam) {
-  const now = new Date()
-  // 兼容多种时间格式：字符串或Date对象
-  const startTime = parseExamTime(exam.startTime)
-  const endTime = parseExamTime(exam.endTime)
-
-  if (!startTime || !endTime) {
-    console.warn('[canStartExam] 时间解析失败:', { startTime: exam.startTime, endTime: exam.endTime })
-    return false
-  }
-
-  const timeOk = now >= startTime && now <= endTime
-  const statusOk = exam.submitStatus === '0' || exam.submitStatus === 0
-
-  if (timeOk && !statusOk) {
-    console.log('[canStartExam] 时间满足但已提交:', { submitStatus: exam.submitStatus })
-  }
-  if (statusOk && !timeOk) {
-    console.log('[canStartExam] 状态满足但不在考试时间内:', {
-      now: now.toISOString(),
-      start: startTime.toISOString(),
-      end: endTime.toISOString()
-    })
-  }
-  if (!timeOk && !statusOk) {
-    console.log('[canStartExam] 不满足开始条件:', {
-      submitStatus: exam.submitStatus,
-      now: now.toISOString(),
-      start: startTime.toISOString(),
-      end: endTime.toISOString()
-    })
-  }
-
-  return timeOk && statusOk
-}
-
-/**
- * 安全解析考试时间，兼容后端返回的字符串格式和前端Date对象
- */
-function parseExamTime(timeValue) {
-  if (!timeValue) return null
-  if (timeValue instanceof Date) return timeValue
-  // 后端 Jackson 序列化格式: "2026-04-07 19:00:00" 或 "2026-04-07T19:00:00"
-  const parsed = new Date(timeValue)
-  // 检查是否为无效日期
-  if (isNaN(parsed.getTime())) return null
-  return parsed
-}
-
-/**
- * 获取无法开始考试的具体原因
- */
-function getCannotStartReason(exam) {
-  const now = new Date()
-  const startTime = parseExamTime(exam.startTime)
-  const endTime = parseExamTime(exam.endTime)
-
-  // 检查提交状态
-  if (exam.submitStatus !== '0' && exam.submitStatus !== 0) {
-    return exam.submitStatus === '2' ? '该考试已自动交卷，无法重新开始' : '您已提交该考试，无法重复作答'
-  }
-
-  // 检查时间
-  if (startTime && now < startTime) {
-    const diffMinutes = Math.ceil((startTime - now) / 60000)
-    if (diffMinutes <= 60) {
-      return `考试尚未开始，请等待 ${diffMinutes} 分钟后再试`
-    }
-    return `考试开始时间：${exam.startTime}，请耐心等待`
-  }
-
-  if (endTime && now > endTime) {
-    return `考试已结束（结束时间：${exam.endTime}），无法进入`
-  }
-
-  // 时间解析失败
-  if (!startTime || !endTime) {
-    return '考试时间信息异常，请联系管理员或刷新页面重试'
-  }
-
-  return null
-}
-
-function getButtonPrimaryType(exam) {
-  if (canStartExam(exam)) return 'primary'
-  // 根据不同状态返回不同的按钮类型，提供视觉区分
-  const now = new Date()
-  const startTime = parseExamTime(exam.startTime)
-  const endTime = parseExamTime(exam.endTime)
-
-  if (exam.submitStatus !== '0' && exam.submitStatus !== 0) return 'info' // 已交卷
-  if (startTime && now < startTime) return '' // 未开始 - 默认
-  if (endTime && now > endTime) return 'danger' // 已结束
-  return '' // 其他情况
-}
-
-function getButtonText(exam) {
-  if (exam.submitStatus !== '0') return '已交卷'
-  const now = new Date()
-  const start = new Date(exam.startTime)
-  if (now < start) return '未开始'
-  return '开始考试'
 }
 
 async function handleStartExam(exam) {
