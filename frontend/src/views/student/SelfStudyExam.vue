@@ -354,7 +354,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
 import {
   getMySelfStudyExams,
   createSelfStudyExam,
@@ -537,6 +537,51 @@ function getStatusTagType(exam) {
 
 // ====== 创建考试 ======
 
+/**
+ * 出卷完成后如实汇报质量。
+ *
+ * 校验器会剔除结构不合格的题目、自检会标记答案存疑的题目——这些原本只写进后端日志，
+ * 使用者完全看不到，只能看到一个"变少了"的题数。把结果摊开说，才谈得上可信。
+ *
+ * @param {Object} quality 后端返回的 { generated, accepted, rejected, warnings, suspectQuestions }
+ * @param {string} fallbackMsg 没有质量数据时的兜底提示
+ */
+function reportQuality(quality, fallbackMsg = 'AI 试卷生成成功！') {
+  if (!quality || typeof quality.accepted !== 'number') {
+    ElMessage.success(fallbackMsg)
+    return
+  }
+
+  const accepted = quality.accepted || 0
+  const rejected = quality.rejected || 0
+  const warnings = quality.warnings || []
+  const suspects = quality.suspectQuestions || []
+
+  ElMessage.success(`AI 试卷生成成功，共 ${accepted} 道题`)
+
+  const lines = []
+  if (rejected > 0) {
+    lines.push(`已剔除 ${rejected} 道结构不合格的题目（选项缺失或答案格式错误）`)
+  }
+  if (suspects.length > 0) {
+    lines.push(`第 ${suspects.join('、')} 题在答案自检中未能复现，建议作答后核对解析`)
+  }
+  // 其余提示（缺解析、答案分布异常等）只挑前两条，避免刷屏
+  const others = warnings.filter(w => !w.includes('未能复现'))
+  if (others.length > 0) {
+    lines.push(others.slice(0, 2).join('；') + (others.length > 2 ? ` 等 ${others.length} 条` : ''))
+  }
+
+  if (lines.length > 0) {
+    ElNotification({
+      title: '出卷质量提示',
+      type: 'warning',
+      duration: 12000,
+      message: lines.join('。')
+    })
+  }
+}
+
 async function handleCreate() {
   if (!form.value.prompt.trim()) {
     ElMessage.warning('请输入考试要求')
@@ -561,8 +606,8 @@ async function handleCreate() {
 
     // 2. 触发AI生成（同步调用，可能耗时较长）
     try {
-      await generateSelfStudyExam(newExam.id)
-      ElMessage.success('AI试卷生成成功！')
+      const genRes = await generateSelfStudyExam(newExam.id)
+      reportQuality(genRes?.data?.quality)
     } catch (genErr) {
       // 生成失败，通过轮询自动感知状态变化
       ElMessage.error(genErr.message || 'AI生成失败，可稍后重试')
@@ -606,11 +651,11 @@ async function handleRegenerate() {
   ElMessage.info('正在重新生成试卷，请耐心等待...')
 
   try {
-    await regenerateSelfStudyExam(regenTargetExam.value.id, {
+    const regenRes = await regenerateSelfStudyExam(regenTargetExam.value.id, {
       prompt: regenForm.value.prompt.trim(),
       duration: regenForm.value.duration
     })
-    ElMessage.success('试卷已重新生成成功！')
+    reportQuality(regenRes?.data?.quality, '试卷已重新生成成功！')
     await loadData()
   } catch (e) {
     ElMessage.error(e.message || '重新生成失败，请稍后重试')

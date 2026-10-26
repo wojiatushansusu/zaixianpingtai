@@ -40,6 +40,31 @@ public class SelfStudyExamService {
     /**
      * 生成唯一6位考试码
      */
+    /**
+     * 生成结果：考试对象 + 出卷质量报告。
+     *
+     * <p>质量报告原本只写日志，用户看不到「有 2 道题因结构不合格被剔除」，
+     * 也不知道哪些题答案存疑。这里一并回传给前端，让 AI 出卷的结果是可见的。
+     */
+    public record GenerateOutcome(SelfStudyExam exam, Map<String, Object> quality) {
+    }
+
+    /**
+     * 把生成器的校验结果整理成可直接给前端用的结构。
+     * 存疑题号由 0 基转成 1 基，避免前端再 +1。
+     */
+    private Map<String, Object> buildQuality(AiPaperGeneratorService.GenerateResult result) {
+        Map<String, Object> quality = new LinkedHashMap<>();
+        quality.put("generated", result.getGeneratedCount());
+        quality.put("accepted", result.getQuestions().size());
+        quality.put("rejected", result.getRejectedCount());
+        quality.put("warnings", result.getWarnings());
+        quality.put("suspectQuestions", result.getSuspectIndexes().stream()
+                .map(i -> i + 1)
+                .collect(Collectors.toList()));
+        return quality;
+    }
+
     public String generateExamCode() {
         for (int i = 0; i < 100; i++) {
             String code = String.format("%06d", ThreadLocalRandom.current().nextInt(1000000));
@@ -98,7 +123,7 @@ public class SelfStudyExamService {
      * AI生成题目并完成考试创建（异步调用后由前端轮询结果）
      */
     @Transactional
-    public SelfStudyExam generateAndUpdateExam(Long examId, Long studentId) {
+    public GenerateOutcome generateAndUpdateExam(Long examId, Long studentId) {
         SelfStudyExam exam = selfStudyExamMapper.selectById(examId);
         if (exam == null) {
             throw new BusinessException("考试不存在");
@@ -206,7 +231,7 @@ public class SelfStudyExamService {
         log.info("AI自助考试生成成功: id={}, title={}, questions={}, paperId={}, examId={}",
                 exam.getId(), result.getTitle(), questions.size(), paper.getId(), realExam.getId());
 
-        return exam;
+        return new GenerateOutcome(exam, buildQuality(result));
     }
 
     // ==================== 考试码加入 ====================
@@ -636,7 +661,7 @@ public class SelfStudyExamService {
      * 限制：只有创建者、且考试状态不是生成中(0)时可以重新生成
      */
     @Transactional
-    public SelfStudyExam regenerateExam(Long examId, Long studentId, String newPrompt, Integer newDuration) {
+    public GenerateOutcome regenerateExam(Long examId, Long studentId, String newPrompt, Integer newDuration) {
         SelfStudyExam exam = selfStudyExamMapper.selectById(examId);
         if (exam == null) {
             throw new BusinessException("考试不存在");

@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -40,11 +41,13 @@ public class SelfStudyExamController {
      * 触发AI生成题目（创建后调用，同步生成）
      */
     @PostMapping("/{examId}/generate")
-    public Result<SelfStudyExam> generate(@PathVariable Long examId,
-                                           HttpServletRequest request) {
+    public Result<Map<String, Object>> generate(@PathVariable Long examId,
+                                                 HttpServletRequest request) {
         Long studentId = (Long) request.getAttribute("userId");
-        SelfStudyExam exam = selfStudyExamService.generateAndUpdateExam(examId, studentId);
-        return Result.success(exam);
+        SelfStudyExamService.GenerateOutcome outcome =
+                selfStudyExamService.generateAndUpdateExam(examId, studentId);
+        // 同时返回考试对象与出卷质量报告，前端据此提示被剔除/存疑的题目
+        return Result.success(toPayload(outcome));
     }
 
     /**
@@ -172,14 +175,23 @@ public class SelfStudyExamController {
      * 仅创建者可操作
      */
     @PostMapping("/{examId}/regenerate")
-    public Result<SelfStudyExam> regenerate(@PathVariable Long examId,
-                                             @RequestBody Map<String, Object> body,
-                                             HttpServletRequest request) {
+    public Result<Map<String, Object>> regenerate(@PathVariable Long examId,
+                                                   @RequestBody Map<String, Object> body,
+                                                   HttpServletRequest request) {
         Long studentId = (Long) request.getAttribute("userId");
         String newPrompt = body.get("prompt") != null ? body.get("prompt").toString() : null;
         Integer newDuration = body.get("duration") != null
                 ? Integer.parseInt(body.get("duration").toString()) : null;
-        SelfStudyExam exam = selfStudyExamService.regenerateExam(examId, studentId, newPrompt, newDuration);
-        return Result.success(exam);
+        SelfStudyExamService.GenerateOutcome outcome =
+                selfStudyExamService.regenerateExam(examId, studentId, newPrompt, newDuration);
+        return Result.success(toPayload(outcome));
+    }
+
+    /** 统一组装「考试 + 质量报告」的响应体 */
+    private Map<String, Object> toPayload(SelfStudyExamService.GenerateOutcome outcome) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("exam", outcome.exam());
+        payload.put("quality", outcome.quality());
+        return payload;
     }
 }
