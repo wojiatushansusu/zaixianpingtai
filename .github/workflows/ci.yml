@@ -44,7 +44,7 @@ jobs:
           retention-days: 7
 
   frontend:
-    name: 前端 · 构建
+    name: 前端 · 单测与构建
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -59,6 +59,10 @@ jobs:
       - name: 安装依赖
         working-directory: frontend
         run: npm ci
+
+      - name: 运行单元测试
+        working-directory: frontend
+        run: npm test
 
       - name: 构建
         working-directory: frontend
