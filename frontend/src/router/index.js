@@ -57,6 +57,12 @@ const routes = [
         meta: { title: '错题本', icon: 'Warning' }
       },
       {
+        path: 'review-path',
+        name: 'ReviewPath',
+        component: () => import('@/views/student/ReviewPath.vue'),
+        meta: { title: '复习路径', icon: 'Guide' }
+      },
+      {
         path: 'practice/:practiceId',
         name: 'TakePractice',
         component: () => import('@/views/student/TakePractice.vue'),
