@@ -43,6 +43,7 @@
             <el-menu-item index="/student/exams">我的考试</el-menu-item>
             <el-menu-item index="/student/grades">我的成绩</el-menu-item>
             <el-menu-item index="/student/wrong-questions">错题本</el-menu-item>
+            <el-menu-item index="/student/review-path">复习路径</el-menu-item>
           </el-sub-menu>
         </template>
 
