@@ -7,6 +7,11 @@ export function createSelfStudyExam(data) {
   return request.post('/student/self-study/create', data)
 }
 
+// 依据某次考试的错题创建专项巩固卷（只建记录，生成另调 generate）
+export function createFromWrongQuestions(data) {
+  return request.post('/student/self-study/from-wrong-questions', data)
+}
+
 // 触发AI生成题目（同步调用，可能耗时较长）
 export function generateSelfStudyExam(examId) {
   return request.post(`/student/self-study/${examId}/generate`, {}, {

@@ -38,6 +38,29 @@ public class SelfStudyExamController {
     }
 
     /**
+     * 依据某次考试的错题创建专项巩固卷。
+     *
+     * 只创建记录（status=0），题目生成仍需前端接着调用 /{examId}/generate，
+     * 与「AI创建考试」保持同一套流程，避免两处等待逻辑不一致。
+     */
+    @PostMapping("/from-wrong-questions")
+    public Result<SelfStudyExam> createFromWrongQuestions(@RequestBody Map<String, Object> body,
+                                                           HttpServletRequest request) {
+        Long studentId = (Long) request.getAttribute("userId");
+        Object recordId = body.get("examRecordId");
+        if (recordId == null) {
+            return Result.error(400, "缺少考试记录ID");
+        }
+
+        Long examRecordId = Long.valueOf(recordId.toString());
+        Integer duration = body.get("duration") != null
+                ? Integer.valueOf(body.get("duration").toString()) : null;
+
+        return Result.success(
+                selfStudyExamService.createFromWrongQuestions(studentId, examRecordId, duration));
+    }
+
+    /**
      * 触发AI生成题目（创建后调用，同步生成）
      */
     @PostMapping("/{examId}/generate")
