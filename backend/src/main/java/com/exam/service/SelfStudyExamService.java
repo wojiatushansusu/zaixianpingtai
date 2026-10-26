@@ -34,6 +34,7 @@ public class SelfStudyExamService {
     private final AiPaperGeneratorService aiPaperGeneratorService;
     private final ExamMapper examMapper;
     private final ExamWhitelistMapper examWhitelistMapper;
+    private final WrongQuestionService wrongQuestionService;
 
     // ==================== 创建与生成 ====================
 
@@ -117,6 +118,78 @@ public class SelfStudyExamService {
         participantMapper.insert(participant);
 
         return exam;
+    }
+
+    /**
+     * 依据某次考试的错题，创建一份专项巩固卷（只创建记录，生成仍走 /generate）。
+     *
+     * <p>这是「错题 → 再考一次」的入口。之前错题本只能走「错题练习」，与 AI 出卷是两条独立的路；
+     * 这里把两者接上：错题本身就是最好的出题素材，比让用户自己想提示词强得多。
+     *
+     * <p>提示词由服务端组装，因为服务端才有完整的题干、选项与正确答案。
+     */
+    @Transactional
+    public SelfStudyExam createFromWrongQuestions(Long studentId, Long examRecordId, Integer duration) {
+        if (examRecordId == null) {
+            throw new BusinessException("缺少考试记录ID");
+        }
+
+        List<Map<String, Object>> wrongQuestions =
+                wrongQuestionService.getWrongQuestionsByExamRecord(examRecordId, studentId);
+
+        if (wrongQuestions.isEmpty()) {
+            throw new BusinessException("这次考试没有错题，暂时不需要专项巩固");
+        }
+
+        String prompt = buildWrongQuestionPrompt(wrongQuestions);
+        log.info("按错题创建专项卷: studentId={}, examRecordId={}, wrongCount={}",
+                studentId, examRecordId, wrongQuestions.size());
+
+        return createSelfStudyExam(studentId, prompt, duration);
+    }
+
+    /**
+     * 把错题整理成给模型的出题要求。
+     *
+     * 题量取「错题数的两倍」，最少 5 道、最多 20 道：只有一个错题时也能练到足够量，
+     * 错题太多时则截断，避免提示词过长导致模型跑偏。
+     */
+    private String buildWrongQuestionPrompt(List<Map<String, Object>> wrongQuestions) {
+        int wrongCount = wrongQuestions.size();
+        int targetCount = Math.min(Math.max(wrongCount * 2, 5), 20);
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("请根据我这次考试的错题，出一份专项巩固卷。\n")
+          .append("要求：\n")
+          .append("1. 共 ").append(targetCount).append(" 道题，全部为客观题（单选/多选/判断），不要出简答题\n")
+          .append("2. 考点与下面这些错题相同或相近，但必须换一道新题，不能照抄原题\n")
+          .append("3. 难度与原错题相当，错误选项要有干扰性\n")
+          .append("4. 每道题都要给出解析\n\n")
+          .append("这次做错的题目如下：\n");
+
+        int listed = Math.min(wrongCount, 20);
+        for (int i = 0; i < listed; i++) {
+            Map<String, Object> q = wrongQuestions.get(i);
+            sb.append(i + 1).append(". [").append(q.get("questionTypeDesc")).append("] ")
+              .append(q.get("content")).append("\n");
+
+            for (String key : List.of("optionA", "optionB", "optionC", "optionD")) {
+                Object option = q.get(key);
+                if (option != null && !String.valueOf(option).isBlank()) {
+                    sb.append("   ").append(key.substring("option".length()))
+                      .append(". ").append(option).append("\n");
+                }
+            }
+
+            sb.append("   我的答案：").append(q.get("studentAnswer"))
+              .append("，正确答案：").append(q.get("correctAnswer")).append("\n");
+        }
+
+        if (wrongCount > listed) {
+            sb.append("（其余 ").append(wrongCount - listed).append(" 道错题从略）\n");
+        }
+
+        return sb.toString();
     }
 
     /**

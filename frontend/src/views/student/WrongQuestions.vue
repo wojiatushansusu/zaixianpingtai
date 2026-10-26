@@ -202,6 +202,14 @@
                 <el-icon><MagicStick /></el-icon>
                 AI讲解全部
               </el-button>
+              <el-button
+                type="success" plain
+                :loading="generatingGroupId === group.examRecordId"
+                @click.stop="handleCreateAiPaperFromGroup(group)"
+              >
+                <el-icon><MagicStick /></el-icon>
+                按错题出专项卷
+              </el-button>
             </div>
           </div>
         </div>
@@ -215,6 +223,8 @@ import { ref, onMounted, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getWrongQuestionStats, getWrongQuestionsGrouped, getWrongQuestionsByExamRecord, createPractice, getPracticeHistory } from '@/api/wrongQuestion'
+import { createFromWrongQuestions, generateSelfStudyExam } from '@/api/selfStudyExam'
+import { reportQuality } from '@/utils/qualityNotice'
 
 const router = useRouter()
 const openAiAssistant = inject('openAiAssistant')
@@ -232,6 +242,7 @@ const showHistory = ref(false)
 // 缓存每个考试分组的错题详情
 const groupWrongCache = ref({})
 const loadingWrongDetail = ref(false)
+const generatingGroupId = ref(null)   // 正在为哪个考试记录生成专项卷
 
 onMounted(() => {
   loadData()
@@ -362,6 +373,44 @@ function handleAiExplainGroup(group) {
     analysis: q.analysis,
     questionTypeDesc: q.questionTypeDesc
   })))
+}
+
+/**
+ * 以这组错题为考点，让 AI 出一份新的专项卷。
+ *
+ * 与「练习该次错题」的区别：练习是把原题再做一遍，这里是换一批新题考同样的考点。
+ * 前者治"记不住"，后者治"没真懂"。
+ */
+async function handleCreateAiPaperFromGroup(group) {
+  const questions = getGroupWrongQuestions(group.examRecordId)
+  if (questions.length === 0) return
+
+  try {
+    await ElMessageBox.confirm(
+      `将以「${group.examTitle}」中的 ${questions.length} 道错题为考点，生成一份新的专项卷。\n出题与质量校验需要一两分钟，页面会保持等待。`,
+      'AI 生成专项巩固卷',
+      { type: 'info', confirmButtonText: '开始生成', cancelButtonText: '取消' }
+    )
+  } catch {
+    return
+  }
+
+  generatingGroupId.value = group.examRecordId
+  try {
+    // 与「AI创建考试」同一套流程：先建记录，再触发生成
+    const createRes = await createFromWrongQuestions({ examRecordId: group.examRecordId })
+    const newExam = createRes.data
+    ElMessage.info('专项卷已创建，正在生成题目，请耐心等待...')
+
+    const genRes = await generateSelfStudyExam(newExam.id)
+    reportQuality(genRes?.data?.quality, '专项卷生成成功！')
+
+    router.push('/student/self-study')
+  } catch (e) {
+    ElMessage.error(e.message || '生成失败，请稍后重试')
+  } finally {
+    generatingGroupId.value = null
+  }
 }
 
 async function handleCreatePracticeFromGroup(group) {
