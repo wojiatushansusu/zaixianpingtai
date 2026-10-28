@@ -89,6 +89,13 @@ public class SelfStudyExamService {
      */
     @Transactional
     public SelfStudyExam createSelfStudyExam(Long studentId, String prompt, Integer duration) {
+        return createSelfStudyExam(studentId, prompt, duration, null);
+    }
+
+    /**
+     * @param stageKey 所属复习阶段，可为空。从「复习路径」发起时传入，用于结果回填。
+     */
+    public SelfStudyExam createSelfStudyExam(Long studentId, String prompt, Integer duration, String stageKey) {
         // 创建自助考试记录
         String examCode = generateExamCode();
         String title = "AI自助考试-" + examCode;
@@ -105,6 +112,7 @@ public class SelfStudyExamService {
         exam.setQuestionCount(0);
         exam.setStudentCount(1);
         exam.setGeneratePrompt(prompt);
+        exam.setStageKey(stageKey);
         selfStudyExamMapper.insert(exam);
 
         log.info("创建自助考试记录: id={}, examCode={}", exam.getId(), examCode);
@@ -832,6 +840,59 @@ public class SelfStudyExamService {
         result.put("studentCount", exam.getStudentCount());
 
         return result;
+    }
+
+    /**
+     * 复习路径各阶段的测验结果。
+     *
+     * <p>只统计从「复习路径」发起的考试（stage_key 非空）。每个阶段取最近一次
+     * 已生成且有答题记录的那一场——重测就该以最新成绩为准，而不是历史最好成绩。
+     */
+    public List<Map<String, Object>> getStageProgress(Long studentId) {
+        List<SelfStudyExam> exams = selfStudyExamMapper.selectList(
+                new LambdaQueryWrapper<SelfStudyExam>()
+                        .eq(SelfStudyExam::getCreatorId, studentId)
+                        .isNotNull(SelfStudyExam::getStageKey)
+                        .ne(SelfStudyExam::getStageKey, "")
+                        .orderByDesc(SelfStudyExam::getId));
+
+        Map<String, Map<String, Object>> byStage = new LinkedHashMap<>();
+        for (SelfStudyExam exam : exams) {
+            String stageKey = exam.getStageKey();
+            if (byStage.containsKey(stageKey)) {
+                continue; // 已有更近的一场
+            }
+            if (exam.getExamId() == null) {
+                continue; // 还没生成完，跳过
+            }
+
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("stageKey", stageKey);
+            row.put("selfStudyExamId", exam.getId());
+            row.put("title", exam.getTitle());
+            row.put("examId", exam.getExamId());
+            row.put("questionCount", exam.getQuestionCount());
+            row.put("passScore", exam.getPassScore());
+
+            ExamRecord record = examRecordMapper.selectOne(
+                    new LambdaQueryWrapper<ExamRecord>()
+                            .eq(ExamRecord::getExamId, exam.getExamId())
+                            .eq(ExamRecord::getStudentId, studentId)
+                            .orderByDesc(ExamRecord::getId)
+                            .last("LIMIT 1"));
+
+            if (record != null) {
+                row.put("recordId", record.getId());
+                row.put("score", record.getScore());
+                row.put("passed", record.getIsPassed() != null && record.getIsPassed() == 1);
+                row.put("submitTime", record.getSubmitTime());
+                row.put("recordStatus", record.getStatus());
+            }
+
+            byStage.put(stageKey, row);
+        }
+
+        return new ArrayList<>(byStage.values());
     }
 
     /**

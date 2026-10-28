@@ -28,6 +28,9 @@
           <div class="card-head">
             <span class="tag">{{ stage.tag }}</span>
             <h3>{{ stage.title }}</h3>
+            <el-tag :type="progressTagType(stage.progress)" size="small" effect="light" class="status-tag">
+              {{ describeProgress(stage.progress) }}
+            </el-tag>
             <span class="weeks">{{ stage.weeks }}</span>
           </div>
 
@@ -58,7 +61,7 @@
               @click="handleTestStage(stage)"
             >
               <el-icon><MagicStick /></el-icon>
-              测这一阶段
+              {{ stage.progress.state === STAGE_STATE.NOT_TESTED ? '测这一阶段' : '再测一次' }}
             </el-button>
             <span class="hint">只考本阶段考点，10 道客观题，约 1~2 分钟生成</span>
           </div>
@@ -81,17 +84,33 @@
  * 当前版本只做了「按阶段出卷」。把考试结果回填成阶段状态（通过/未通过）
  * 需要把 exam 与 stage 关联起来，属于下一步。
  */
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { reviewStages, buildStagePrompt } from '@/data/reviewPath'
-import { createSelfStudyExam, generateSelfStudyExam } from '@/api/selfStudyExam'
+import { createSelfStudyExam, generateSelfStudyExam, getStageProgress } from '@/api/selfStudyExam'
 import { reportQuality } from '@/utils/qualityNotice'
+import { mergeStageProgress, describeProgress, progressTagType, STAGE_STATE } from '@/utils/stageProgress'
 
 const router = useRouter()
 
-const stages = reviewStages
+const progressRows = ref([])
 const generating = ref(null)
+
+// 把后端返回的测验结果合并进阶段数据：未测 / 已出卷待作答 / 已通过 / 未通过
+const stages = computed(() => mergeStageProgress(reviewStages, progressRows.value))
+
+async function loadProgress() {
+  try {
+    const res = await getStageProgress()
+    progressRows.value = res.data || []
+  } catch {
+    // 进度拿不到不影响出卷，页面照常可用
+    progressRows.value = []
+  }
+}
+
+onMounted(loadProgress)
 
 async function handleTestStage(stage) {
   try {
@@ -108,7 +127,7 @@ async function handleTestStage(stage) {
   try {
     // 复用「AI创建考试」的流程：先建记录，再触发生成
     const prompt = buildStagePrompt(stage, 10)
-    const createRes = await createSelfStudyExam({ prompt, duration: 30 })
+    const createRes = await createSelfStudyExam({ prompt, duration: 30, stageKey: stage.key })
     const exam = createRes.data
     ElMessage.info('阶段测验已创建，正在生成题目，请耐心等待...')
 
@@ -169,6 +188,7 @@ async function handleTestStage(stage) {
 .card-head h3 { margin: 0; font-size: 16px; font-weight: 700; color: var(--color-text-primary); flex: 1; }
 .tag { font-size: 12px; font-weight: 700; color: var(--color-primary, #409eff); letter-spacing: .5px; }
 .weeks { font-size: 13px; color: var(--color-text-secondary); white-space: nowrap; }
+.status-tag { flex-shrink: 0; }
 
 .src { margin: 10px 0 14px; font-size: 13px; color: var(--color-text-secondary); line-height: 1.6; }
 .src b { color: var(--color-text-regular); font-weight: 600; }

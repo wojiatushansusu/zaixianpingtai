@@ -17,4 +17,11 @@ public class CreateSelfStudyExamDTO {
 
     /** 考试时长（分钟） */
     private Integer duration = 60;
+
+    /**
+     * 所属复习阶段（如 stage-2）。
+     * 从「复习路径」页发起时传入，用于把考试结果回填成阶段状态；普通出卷留空。
+     */
+    @Size(max = 20, message = "阶段标识过长")
+    private String stageKey;
 }

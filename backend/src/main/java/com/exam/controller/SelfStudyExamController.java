@@ -33,8 +33,18 @@ public class SelfStudyExamController {
     public Result<SelfStudyExam> create(@Valid @RequestBody CreateSelfStudyExamDTO dto,
                                          HttpServletRequest request) {
         Long studentId = (Long) request.getAttribute("userId");
-        SelfStudyExam exam = selfStudyExamService.createSelfStudyExam(studentId, dto.getPrompt(), dto.getDuration());
+        SelfStudyExam exam = selfStudyExamService.createSelfStudyExam(
+                studentId, dto.getPrompt(), dto.getDuration(), dto.getStageKey());
         return Result.success(exam);
+    }
+
+    /**
+     * 复习路径各阶段的测验结果（用于把考试分数回填成阶段状态）。
+     */
+    @GetMapping("/stage-progress")
+    public Result<List<Map<String, Object>>> stageProgress(HttpServletRequest request) {
+        Long studentId = (Long) request.getAttribute("userId");
+        return Result.success(selfStudyExamService.getStageProgress(studentId));
     }
 
     /**
