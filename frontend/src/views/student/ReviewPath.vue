@@ -39,6 +39,11 @@
             <template v-if="stage.method">　<b>方式</b> {{ stage.method }}</template>
           </p>
 
+          <p v-if="stage.prerequisite.unmet" class="gate-hint">
+            <el-icon><InfoFilled /></el-icon>
+            {{ describePrerequisite(stage.prerequisite) }}
+          </p>
+
           <ul class="items">
             <li v-for="item in stage.items" :key="item.name">
               <b>{{ item.name }}</b>
@@ -90,7 +95,14 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { reviewStages, buildStagePrompt } from '@/data/reviewPath'
 import { createSelfStudyExam, generateSelfStudyExam, getStageProgress } from '@/api/selfStudyExam'
 import { reportQuality } from '@/utils/qualityNotice'
-import { mergeStageProgress, describeProgress, progressTagType, STAGE_STATE } from '@/utils/stageProgress'
+import {
+  mergeStageProgress,
+  describeProgress,
+  progressTagType,
+  applyPrerequisites,
+  describePrerequisite,
+  STAGE_STATE
+} from '@/utils/stageProgress'
 
 const router = useRouter()
 
@@ -98,7 +110,9 @@ const progressRows = ref([])
 const generating = ref(null)
 
 // 把后端返回的测验结果合并进阶段数据：未测 / 已出卷待作答 / 已通过 / 未通过
-const stages = computed(() => mergeStageProgress(reviewStages, progressRows.value))
+const stages = computed(() =>
+  applyPrerequisites(mergeStageProgress(reviewStages, progressRows.value))
+)
 
 async function loadProgress() {
   try {
@@ -189,6 +203,19 @@ async function handleTestStage(stage) {
 .tag { font-size: 12px; font-weight: 700; color: var(--color-primary, #409eff); letter-spacing: .5px; }
 .weeks { font-size: 13px; color: var(--color-text-secondary); white-space: nowrap; }
 .status-tag { flex-shrink: 0; }
+
+.gate-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--color-warning, #b88230);
+  background: rgba(230, 162, 60, 0.08);
+  border-radius: 6px;
+}
 
 .src { margin: 10px 0 14px; font-size: 13px; color: var(--color-text-secondary); line-height: 1.6; }
 .src b { color: var(--color-text-regular); font-weight: 600; }

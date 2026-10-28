@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { mergeStageProgress, describeProgress, progressTagType, STAGE_STATE } from '../stageProgress.js'
+import {
+  mergeStageProgress,
+  describeProgress,
+  progressTagType,
+  applyPrerequisites,
+  describePrerequisite,
+  STAGE_STATE
+} from '../stageProgress.js'
 import { reviewStages } from '@/data/reviewPath.js'
 
 /**
@@ -98,5 +105,59 @@ describe('progressTagType', () => {
     expect(progressTagType({ state: STAGE_STATE.FAILED })).toBe('danger')
     expect(progressTagType({ state: STAGE_STATE.IN_PROGRESS })).toBe('warning')
     expect(progressTagType({ state: STAGE_STATE.NOT_TESTED })).toBe('info')
+  })
+})
+
+describe('applyPrerequisites', () => {
+  const merged = (states) =>
+    states.map((state, i) => ({
+      key: `stage-${i}`,
+      tag: `阶段 ${i}`,
+      title: `标题${i}`,
+      progress: { state }
+    }))
+
+  it('第一个阶段没有门槛', () => {
+    const result = applyPrerequisites(merged([STAGE_STATE.NOT_TESTED]))
+    expect(result[0].prerequisite.unmet).toBe(false)
+  })
+
+  it('上一阶段已通过时不提示', () => {
+    const result = applyPrerequisites(merged([STAGE_STATE.PASSED, STAGE_STATE.NOT_TESTED]))
+    expect(result[1].prerequisite.unmet).toBe(false)
+  })
+
+  it('上一阶段未通过、未测、待作答都算未满足', () => {
+    for (const state of [STAGE_STATE.FAILED, STAGE_STATE.NOT_TESTED, STAGE_STATE.IN_PROGRESS]) {
+      const result = applyPrerequisites(merged([state, STAGE_STATE.NOT_TESTED]))
+      expect(result[1].prerequisite.unmet).toBe(true)
+      expect(result[1].prerequisite.prevState).toBe(state)
+    }
+  })
+
+  it('指的是紧邻的上一阶段，不是更早的阶段', () => {
+    const result = applyPrerequisites(
+      merged([STAGE_STATE.PASSED, STAGE_STATE.FAILED, STAGE_STATE.NOT_TESTED])
+    )
+    expect(result[2].prerequisite.prevTag).toBe('阶段 1')
+    expect(result[2].prerequisite.unmet).toBe(true)
+  })
+
+  it('不修改入参', () => {
+    const input = merged([STAGE_STATE.PASSED, STAGE_STATE.NOT_TESTED])
+    applyPrerequisites(input)
+    expect(input[1].prerequisite).toBeUndefined()
+  })
+})
+
+describe('describePrerequisite', () => {
+  it('满足时返回空串', () => {
+    expect(describePrerequisite({ unmet: false })).toBe('')
+    expect(describePrerequisite(null)).toBe('')
+  })
+
+  it('未满足时点名上一阶段', () => {
+    expect(describePrerequisite({ unmet: true, prevTag: '阶段 1' }))
+      .toBe('建议先通过「阶段 1」再测这一段')
   })
 })

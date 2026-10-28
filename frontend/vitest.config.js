@@ -33,6 +33,9 @@ export default defineConfig({
   test: {
     environment: 'node',
     cache: { dir: 'node_modules/.vitest-cache' },
+    // 多个测试文件并行时会同时写同一份模块缓存，在受限文件系统下会撞出 EPERM。
+    // 本项目的单测都是纯函数、总共不到 1 秒，串行跑的代价可以忽略。
+    fileParallelism: false,
     include: ['src/**/__tests__/**/*.test.js'],
     reporters: 'default'
   }
