@@ -138,6 +138,11 @@ cd frontend && npm install && npm run dev          # :5173
 
 > 本地跑前端单测：`cd frontend && npm test`（CI 里也会执行）。
 
+> **存量题目补知识点**（管理员）：`POST /admin/questions/backfill-topics?limit=10&dryRun=true`
+> 每道题都要调一次模型，所以故意限制单批最多 50 题——跑一批、看一眼 `samples`、再决定继续。
+> `dryRun=true` 只判定不落库。词表见 `backend/src/main/resources/knowledge-topics.json`，
+> 与前端复习路径的模块名由一条单测守卫，两边不会漂移。
+
 > **已有数据库升级**：复习路径相关改动加了两列——
 > `self_study_exam.stage_key`（阶段测验归属）与 `question.knowledge_point`（题目知识点）。
 > 老库依次执行 `db/migration-stage-key.sql` 与 `db/migration-knowledge-point.sql`；

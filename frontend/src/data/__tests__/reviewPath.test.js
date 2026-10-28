@@ -1,4 +1,7 @@
 import { describe, it, expect } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { reviewStages, buildStagePrompt } from '../reviewPath.js'
 
 /**
@@ -81,5 +84,38 @@ describe('buildStagePrompt', () => {
   it('题量参数生效，默认 10 道', () => {
     expect(buildStagePrompt(stage2)).toContain('共 10 道客观题')
     expect(buildStagePrompt(stage2, 20)).toContain('共 20 道客观题')
+  })
+})
+
+describe('知识点词表与阶段模块保持一致', () => {
+  // 词表 JSON 由 reviewPath.js 导出、供后端 AI 补标使用。
+  // 两边一旦不同步，补标出来的知识点就会和诊断时的模块名对不上——
+  // 而这种错很安静：数字照常显示，只是永远归不到一起。
+  const catalogPath = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    '../../../../backend/src/main/resources/knowledge-topics.json'
+  )
+
+  it('词表文件存在且可解析', () => {
+    const raw = fs.readFileSync(catalogPath, 'utf8')
+    const catalog = JSON.parse(raw)
+    expect(Array.isArray(catalog.topics)).toBe(true)
+    expect(catalog.topics.length).toBeGreaterThan(0)
+  })
+
+  it('复习路径里的每个模块都在词表中', () => {
+    const catalog = JSON.parse(fs.readFileSync(catalogPath, 'utf8'))
+    const names = new Set(catalog.topics.map((t) => t.name))
+    const missing = reviewStages
+      .flatMap((stage) => stage.items.map((item) => item.name))
+      .filter((name) => !names.has(name))
+    expect(missing).toEqual([])
+  })
+
+  it('词表里没有空项与重复项', () => {
+    const catalog = JSON.parse(fs.readFileSync(catalogPath, 'utf8'))
+    const names = catalog.topics.map((t) => t.name)
+    expect(names.every((n) => n && n.trim().length > 0)).toBe(true)
+    expect(names.length).toBe(new Set(names).size)
   })
 })
