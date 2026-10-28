@@ -6,10 +6,11 @@ import {
   applyPrerequisites,
   describePrerequisite,
   describeWeakTopics,
+  weakTopicNames,
   UNLABELED_TOPIC,
   STAGE_STATE
 } from '../stageProgress.js'
-import { reviewStages } from '@/data/reviewPath.js'
+import { reviewStages, buildWeakTopicPrompt } from '@/data/reviewPath.js'
 
 /**
  * 阶段进度合并测试。
@@ -223,5 +224,57 @@ describe('mergeStageProgress 带上 weakTopics', () => {
       [{ stageKey: 'stage-2', score: 88, passed: true }]
     )
     expect(result[0].progress.weakTopics).toEqual([])
+  })
+})
+
+describe('weakTopicNames', () => {
+  it('取出可用于出题的考点名', () => {
+    const names = weakTopicNames([
+      { topic: '不定积分', wrongCount: 3 },
+      { topic: '定积分', wrongCount: 2 }
+    ])
+    expect(names).toEqual(['不定积分', '定积分'])
+  })
+
+  it('过滤「未标注知识点」，不能拿它去出题', () => {
+    const names = weakTopicNames([
+      { topic: '不定积分', wrongCount: 3 },
+      { topic: UNLABELED_TOPIC, wrongCount: 2 }
+    ])
+    expect(names).toEqual(['不定积分'])
+  })
+
+  it('全部未标注时返回空数组（页面据此不显示按钮）', () => {
+    expect(weakTopicNames([{ topic: UNLABELED_TOPIC, wrongCount: 5 }])).toEqual([])
+  })
+
+  it('限制数量，避免提示词考点过多导致焦点分散', () => {
+    const many = ['a', 'b', 'c', 'd', 'e'].map((t) => ({ topic: t, wrongCount: 1 }))
+    expect(weakTopicNames(many, 3)).toEqual(['a', 'b', 'c'])
+  })
+
+  it('容忍空值', () => {
+    expect(weakTopicNames(null)).toEqual([])
+    expect(weakTopicNames([])).toEqual([])
+  })
+})
+
+describe('buildWeakTopicPrompt', () => {
+  it('只列出薄弱考点，不带本阶段其它模块', () => {
+    const stage = reviewStages[2] // 阶段 2：函数与极限、导数与微分、导数的应用、不定积分、定积分
+    const prompt = buildWeakTopicPrompt(stage, ['不定积分', '定积分'], 6)
+
+    expect(prompt).toContain('只考以下考点：不定积分、定积分')
+    expect(prompt).toContain('共 6 道客观题')
+    expect(prompt).toContain('阶段 2')
+    // 重点：没被点名的模块不能出现在考点行里
+    const topicLine = prompt.split('\n').find((l) => l.includes('只考以下考点'))
+    expect(topicLine).not.toContain('函数与极限')
+    expect(topicLine).not.toContain('导数的应用')
+  })
+
+  it('要求带 topic 以便下次还能归因', () => {
+    const prompt = buildWeakTopicPrompt(reviewStages[2], ['不定积分'], 6)
+    expect(prompt).toContain('topic 字段')
   })
 })

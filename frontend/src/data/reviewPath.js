@@ -182,3 +182,30 @@ export function buildStagePrompt(stage, count = 10) {
     '5. 每道题都要带 topic 字段，值必须是上面考点里的一个，原样照抄，不要改写或自创'
   ].join('\n')
 }
+
+/**
+ * 为「只攻薄弱考点」生成提示词。
+ *
+ * 和阶段测验的区别：阶段测验覆盖整段的全部模块，这里只考诊断出来的那几项。
+ * 学生其他模块已经过了，整段重刷是浪费；但也不能只重做错题——错题只是症状，
+ * 同一个考点换道题仍然可能错，所以要按考点重新出题。
+ *
+ * @param {Object} stage  阶段（用于取难度与阶段名）
+ * @param {string[]} topics 薄弱考点（阶段模块名）
+ * @param {number} count  题量
+ */
+export function buildWeakTopicPrompt(stage, topics, count = 10) {
+  const list = (topics || []).filter((t) => t && t.trim())
+  const topicText = list.join('、')
+
+  return [
+    `请出一份「${stage.tag} · ${stage.title}」的薄弱考点专项卷。`,
+    '这次只考下面列出的几个考点，不要覆盖本阶段其他内容——学生其他模块已经通过。',
+    '要求：',
+    `1. 共 ${count} 道客观题（单选/多选/判断），不要出简答题`,
+    `2. 只考以下考点：${topicText}`,
+    `3. 难度与「${stage.tag}」的阶段测验相当，不要超纲，不要出更后面的内容`,
+    '4. 每题都要给出解析',
+    '5. 每道题都要带 topic 字段，值必须是上面考点里的一个，原样照抄，不要改写或自创'
+  ].join('\n')
+}
