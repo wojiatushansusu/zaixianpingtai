@@ -42,6 +42,12 @@ public class Question {
     /** 难度(1-简单 2-中等 3-困难) */
     private Integer difficulty;
 
+    /**
+     * 知识点：对应复习路径里的阶段模块名（如「不定积分」）。
+     * 由 AI 出卷时标注，用于把错题归到具体模块上。
+     */
+    private String knowledgePoint;
+
     /** 创建者ID */
     private Long creatorId;
 

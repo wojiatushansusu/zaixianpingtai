@@ -54,7 +54,8 @@ export function mergeStageProgress(stages, rows) {
         passScore: row.passScore,
         submitTime: row.submitTime,
         examId: row.examId,
-        selfStudyExamId: row.selfStudyExamId
+        selfStudyExamId: row.selfStudyExamId,
+        weakTopics: Array.isArray(row.weakTopics) ? row.weakTopics : []
       }
     }
   })
@@ -132,4 +133,43 @@ export function describePrerequisite(prerequisite) {
     return ''
   }
   return `建议先通过「${prerequisite.prevTag}」再测这一段`
+}
+
+/** 后端对「题目没有知识点」的统一叫法，前后端各有一处，改的时候要一起改 */
+export const UNLABELED_TOPIC = '未标注知识点'
+
+/**
+ * 把错题的知识点分布整理成一句人话。
+ *
+ * 分数只说明"这一阶段没过"，这行才说明"该回看哪一段"。
+ * 未标注的题目单独提一句，不混进任何模块——瞎归类比不归类更害人。
+ *
+ * @param {Array<{topic: string, wrongCount: number}>} weakTopics
+ * @param {number} limit 最多列几个模块
+ * @returns {string} 没有可用信息时返回空串
+ */
+export function describeWeakTopics(weakTopics, limit = 3) {
+  if (!Array.isArray(weakTopics) || weakTopics.length === 0) {
+    return ''
+  }
+
+  const labeled = weakTopics.filter((item) => item && item.topic && item.topic !== UNLABELED_TOPIC)
+  const unlabeled = weakTopics.find((item) => item && item.topic === UNLABELED_TOPIC)
+
+  if (labeled.length === 0) {
+    return unlabeled ? `错题尚未标注知识点（${unlabeled.wrongCount} 题）` : ''
+  }
+
+  const parts = labeled
+    .slice(0, limit)
+    .map((item) => `${item.topic} ×${item.wrongCount}`)
+
+  if (labeled.length > limit) {
+    parts.push(`等 ${labeled.length} 个知识点`)
+  }
+  if (unlabeled) {
+    parts.push(`另有 ${unlabeled.wrongCount} 题未标注`)
+  }
+
+  return `错在：${parts.join('、')}`
 }

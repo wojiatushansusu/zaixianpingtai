@@ -85,6 +85,7 @@ CREATE TABLE `question` (
     `image_url` VARCHAR(500) DEFAULT NULL COMMENT '题干图片路径',
     `score` INT NOT NULL DEFAULT 5 COMMENT '默认分值',
     `difficulty` TINYINT NOT NULL DEFAULT 1 COMMENT '难度(1-简单 2-中等 3-困难)',
+    `knowledge_point` VARCHAR(64) DEFAULT NULL COMMENT '知识点（对应复习路径的阶段模块名，AI 出卷时标注）',
     `creator_id` BIGINT NOT NULL COMMENT '创建者ID',
     `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
