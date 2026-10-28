@@ -143,7 +143,8 @@ public class AiPaperGeneratorService {
                       "optionC": "选项C",
                       "optionD": "选项D",
                       "answer": "A",
-                      "analysis": "解析说明"
+                      "analysis": "解析说明",
+                      "topic": "所属考点（若用户消息中给了考点清单，必须从中原样选一个）"
                     }
                   ]
                 }
@@ -158,7 +159,9 @@ public class AiPaperGeneratorService {
                 1. 题目内容要有实际意义，不能是占位符
                 2. 所有题目必须有明确唯一的正确答案
                 3. 解析要简洁但有助于理解
-                4. 只输出JSON，不要包含markdown代码块标记或其他文字
+                4. topic 用于把题目归到知识点上：用户消息里给出考点清单时，必须原样采用清单里的某一项，
+                   不得自创名称；没有给清单时留空字符串
+                5. 只输出JSON，不要包含markdown代码块标记或其他文字
                 """;
     }
 
@@ -199,6 +202,7 @@ public class AiPaperGeneratorService {
                 question.put("optionD", getTextOrDefault(qNode, "optionD", ""));
                 question.put("answer", qNode.path("answer").asText(""));
                 question.put("analysis", getTextOrDefault(qNode, "analysis", "暂无解析"));
+                question.put("topic", qNode.path("topic").asText(""));
                 question.put("score", 10);
                 question.put("difficulty", 2);
                 question.put("creatorId", studentId);

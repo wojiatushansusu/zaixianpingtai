@@ -242,6 +242,10 @@ public class SelfStudyExamService {
             q.setAnalysis((String) qData.get("analysis"));
             q.setScore((Integer) qData.getOrDefault("score", 10));
             q.setDifficulty((Integer) qData.getOrDefault("difficulty", 2));
+            String topic = (String) qData.get("topic");
+            if (topic != null && !topic.isBlank()) {
+                q.setKnowledgePoint(topic.length() > 64 ? topic.substring(0, 64) : topic);
+            }
             q.setCreatorId(studentId);
             questionMapper.insert(q);
             questions.add(q);
@@ -887,12 +891,58 @@ public class SelfStudyExamService {
                 row.put("passed", record.getIsPassed() != null && record.getIsPassed() == 1);
                 row.put("submitTime", record.getSubmitTime());
                 row.put("recordStatus", record.getStatus());
+                row.put("weakTopics", collectWeakTopics(record.getId()));
             }
 
             byStage.put(stageKey, row);
         }
 
         return new ArrayList<>(byStage.values());
+    }
+
+    /**
+     * 统计某次考试里做错的题目分布在哪些知识点上。
+     *
+     * <p>这是「分数之外的第二层信息」：同样是 45 分，错在「不定积分」和错在「行列式」
+     * 对应完全不同的补救动作。按知识点归类后，学生才知道下一步该回看哪一段。
+     *
+     * <p>没有标注知识点的题目单独归到「未标注」，不混进任何模块——宁可承认不知道，
+     * 也不要瞎归类。
+     */
+    private List<Map<String, Object>> collectWeakTopics(Long recordId) {
+        List<AnswerRecord> wrongAnswers = answerRecordMapper.selectList(
+                new LambdaQueryWrapper<AnswerRecord>()
+                        .eq(AnswerRecord::getRecordId, recordId)
+                        .eq(AnswerRecord::getIsCorrect, 0));
+
+        if (wrongAnswers.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        List<Long> questionIds = wrongAnswers.stream()
+                .map(AnswerRecord::getQuestionId).distinct().toList();
+        Map<Long, Question> questionMap = questionMapper.selectBatchIds(questionIds).stream()
+                .collect(Collectors.toMap(Question::getId, q -> q, (a, b) -> a));
+
+        Map<String, Integer> counter = new LinkedHashMap<>();
+        for (AnswerRecord answer : wrongAnswers) {
+            Question question = questionMap.get(answer.getQuestionId());
+            String topic = question != null ? question.getKnowledgePoint() : null;
+            if (topic == null || topic.isBlank()) {
+                topic = "未标注知识点";
+            }
+            counter.merge(topic, 1, Integer::sum);
+        }
+
+        return counter.entrySet().stream()
+                .sorted((a, b) -> b.getValue() - a.getValue())
+                .map(e -> {
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("topic", e.getKey());
+                    item.put("wrongCount", e.getValue());
+                    return item;
+                })
+                .collect(Collectors.toList());
     }
 
     /**

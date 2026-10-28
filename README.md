@@ -138,8 +138,10 @@ cd frontend && npm install && npm run dev          # :5173
 
 > 本地跑前端单测：`cd frontend && npm test`（CI 里也会执行）。
 
-> **已有数据库升级**：`self_study_exam` 新增了 `stage_key` 列（复习路径用）。
-> 老库执行一次 `backend/src/main/resources/db/migration-stage-key.sql`；新建库由 `schema.sql` 直接建出，无需执行。
+> **已有数据库升级**：复习路径相关改动加了两列——
+> `self_study_exam.stage_key`（阶段测验归属）与 `question.knowledge_point`（题目知识点）。
+> 老库依次执行 `db/migration-stage-key.sql` 与 `db/migration-knowledge-point.sql`；
+> 新建库由 `schema.sql` 直接建出，无需执行。
 - **单机部署**：未做水平扩展，`uploads/` 与视频证据存本地磁盘，多实例需改造为对象存储。
 - **前端单文件偏大**：`StudentExams.vue` 等页面尚未拆分组件，改动时注意影响面。
 - **无 API 文档**：未集成 springdoc，接口以 controller 代码为准。

@@ -47,6 +47,11 @@
                 {{ describePrerequisite(stage.prerequisite) }}
               </p>
 
+              <p v-if="describeWeakTopics(stage.progress.weakTopics)" class="weak-topics">
+                <el-icon><Warning /></el-icon>
+                {{ describeWeakTopics(stage.progress.weakTopics) }}
+              </p>
+
               <ul class="items">
                 <li v-for="item in stage.items" :key="item.name">
                   <b>{{ item.name }}</b>
@@ -260,6 +265,7 @@ import {
   progressTagType,
   applyPrerequisites,
   describePrerequisite,
+  describeWeakTopics,
   STAGE_STATE
 } from '@/utils/stageProgress'
 
@@ -365,6 +371,19 @@ async function handleTestStage(stage) {
 .tag { font-size: 12px; font-weight: 700; color: var(--color-primary, #409eff); letter-spacing: .5px; }
 .weeks { font-size: 13px; color: var(--color-text-secondary); white-space: nowrap; }
 .status-tag { flex-shrink: 0; }
+
+.weak-topics {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--color-danger, #f56c6c);
+  background: rgba(245, 108, 108, 0.07);
+  border-radius: 6px;
+}
 
 .gate-hint {
   display: flex;

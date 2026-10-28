@@ -5,6 +5,8 @@ import {
   progressTagType,
   applyPrerequisites,
   describePrerequisite,
+  describeWeakTopics,
+  UNLABELED_TOPIC,
   STAGE_STATE
 } from '../stageProgress.js'
 import { reviewStages } from '@/data/reviewPath.js'
@@ -159,5 +161,67 @@ describe('describePrerequisite', () => {
   it('未满足时点名上一阶段', () => {
     expect(describePrerequisite({ unmet: true, prevTag: '阶段 1' }))
       .toBe('建议先通过「阶段 1」再测这一段')
+  })
+})
+
+describe('describeWeakTopics', () => {
+  it('没有数据时返回空串', () => {
+    expect(describeWeakTopics([])).toBe('')
+    expect(describeWeakTopics(null)).toBe('')
+    expect(describeWeakTopics(undefined)).toBe('')
+  })
+
+  it('列出错得最多的几个模块', () => {
+    const text = describeWeakTopics([
+      { topic: '不定积分', wrongCount: 3 },
+      { topic: '定积分', wrongCount: 2 },
+      { topic: '导数与微分', wrongCount: 1 }
+    ])
+    expect(text).toBe('错在：不定积分 ×3、定积分 ×2、导数与微分 ×1')
+  })
+
+  it('超过上限时截断并说明总数', () => {
+    const text = describeWeakTopics([
+      { topic: '不定积分', wrongCount: 3 },
+      { topic: '定积分', wrongCount: 2 },
+      { topic: '导数与微分', wrongCount: 1 },
+      { topic: '函数与极限', wrongCount: 1 }
+    ], 2)
+    expect(text).toContain('不定积分 ×3')
+    expect(text).toContain('定积分 ×2')
+    expect(text).not.toContain('导数与微分')
+    expect(text).toContain('等 4 个知识点')
+  })
+
+  it('未标注的题单独说明，不混进任何模块', () => {
+    const text = describeWeakTopics([
+      { topic: '不定积分', wrongCount: 2 },
+      { topic: UNLABELED_TOPIC, wrongCount: 1 }
+    ])
+    expect(text).toBe('错在：不定积分 ×2、另有 1 题未标注')
+  })
+
+  it('全部未标注时如实说明，而不是编一个模块名', () => {
+    const text = describeWeakTopics([{ topic: UNLABELED_TOPIC, wrongCount: 4 }])
+    expect(text).toBe('错题尚未标注知识点（4 题）')
+  })
+})
+
+describe('mergeStageProgress 带上 weakTopics', () => {
+  it('把错题分布透传到 progress', () => {
+    const result = mergeStageProgress(
+      [{ key: 'stage-2', tag: '阶段 2', title: 't', items: [], acceptance: [] }],
+      [{ stageKey: 'stage-2', score: 45, passed: false, weakTopics: [{ topic: '不定积分', wrongCount: 2 }] }]
+    )
+    expect(result[0].progress.weakTopics).toEqual([{ topic: '不定积分', wrongCount: 2 }])
+    expect(describeWeakTopics(result[0].progress.weakTopics)).toBe('错在：不定积分 ×2')
+  })
+
+  it('后端没给该字段时兜底为空数组', () => {
+    const result = mergeStageProgress(
+      [{ key: 'stage-2', tag: '阶段 2', title: 't', items: [], acceptance: [] }],
+      [{ stageKey: 'stage-2', score: 88, passed: true }]
+    )
+    expect(result[0].progress.weakTopics).toEqual([])
   })
 })
