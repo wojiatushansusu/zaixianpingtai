@@ -18,8 +18,9 @@ spring:
     password: ${DB_PASSWORD:}
   data:
     redis:
-      host: localhost
-      port: 6379
+      # 容器部署时必须指向服务名（compose 里是 redis），否则会连到容器自身
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
       database: 0
       timeout: 5000ms
   servlet:
@@ -71,7 +72,8 @@ app:
     path: uploads
   # AI配置（CV分析 + LLM路由）
   ai:
-    enabled: false
+    # 不配置 AI_API_KEY 时即使打开也没有意义，所以默认关闭；由环境变量显式开启
+    enabled: ${AI_ENABLED:false}
     face-detect-interval: 3
     head-pose-threshold: 30
     multi-face-alert: true

@@ -89,7 +89,112 @@ cd frontend && npm install && npm run dev          # :5173
 | `DB_USERNAME` / `DB_PASSWORD` | **是** | 数据库账号 |
 | `JWT_SECRET` | **是** | ≥32 字节随机串，用于签发 token |
 | `CORS_ALLOWED_ORIGINS` | 否 | 逗号分隔，默认仅放行 localhost |
-| `AI_API_URL` / `AI_API_KEY` | 否 | OpenAI 兼容接口。默认关闭；也支持本地 Ollama |
+| `AI_ENABLED` | 否 | 默认 `false`。**必须显式设为 `true` 才会启用 AI**，即使填了 key |
+| `AI_API_URL` / `AI_API_KEY` | 否 | OpenAI 兼容接口。也支持本地 Ollama |
+| `REDIS_HOST` / `REDIS_PORT` | 否 | 默认 `localhost` / `6379`；compose 下已设为 `redis` |
+
+## 部署到服务器
+
+### 1. 准备 .env
+
+```bash
+cp .env.example .env
+```
+
+两件事必须做，否则要么起不来、要么核心功能是哑的：
+
+```bash
+# ① JWT 密钥（留空直接拒绝启动）
+JWT_SECRET=$(openssl rand -base64 48)
+
+# ② 打开 AI —— 不设这一项，出卷 / 错题讲解 / 知识点补标全部不可用
+AI_ENABLED=true
+AI_API_KEY=sk-xxxxxxxx
+```
+
+> `AI_ENABLED` 与 `AI_API_KEY` 缺一不可：只填 key 不开开关，什么都没变；
+> 只开开关没 key，调用会失败。这一项最容易漏，因为漏了不报错，只是功能静默不可用。
+
+### 2. 起服务
+
+```bash
+docker compose up -d --build
+```
+
+首次启动会自动建表并写入演示数据（24 张表 + 若干账号）。**演示账号密码都是 `123456`，
+对公网开放前必须先改掉或删除**，见下方「演示账号」。
+
+### 3. 接域名
+
+最简单的做法是让宿主机的 80/443 反代到 `127.0.0.1:8088`：
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name exam.example.com;
+    client_max_body_size 20m;
+
+    location / {
+        proxy_pass http://127.0.0.1:8088;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        # AI 出卷是同步长请求，超时要够长
+        proxy_read_timeout 300s;
+    }
+}
+```
+
+前端容器里的 nginx 已经把 `/api/` 转给后端（含 WebSocket 升级），外层只需要整体转发。
+
+> **CORS 不用配**：前后端同域。只有在前后端分属不同域名时才需要设 `CORS_ALLOWED_ORIGINS`。
+
+### 4. 复用旧数据库时
+
+`docker-compose.yml` 只在**首次**创建数据库时执行 `schema.sql`，已存在的库不会自动升级。
+若你导入的是旧数据，需要手动补两列：
+
+```bash
+docker compose exec -T mysql mysql -uroot -p"$DB_PASSWORD" exam_platform \
+  < backend/src/main/resources/db/migration-stage-key.sql
+docker compose exec -T mysql mysql -uroot -p"$DB_PASSWORD" exam_platform \
+  < backend/src/main/resources/db/migration-knowledge-point.sql
+```
+
+### 5. 部署后 5 分钟自查
+
+按顺序跑，哪一步不对就停在那里查，别急着点页面：
+
+```bash
+BASE=https://你的域名
+
+# ① 服务活着（返回 400 = 参数校验生效，说明请求链路通了）
+curl -s -o /dev/null -w "%{http_code}\n" -X POST $BASE/api/auth/login \
+  -H 'Content-Type: application/json' -d '{}'
+
+# ② 登录拿 token
+TOKEN=$(curl -s -X POST $BASE/api/auth/login -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"123456"}' | python -c 'import sys,json;print(json.load(sys.stdin)["data"]["token"])')
+
+# ③ 知识点词表（能返回 35 项，说明词表加载 + 管理员权限都正常）
+curl -s $BASE/api/admin/questions/topic-catalog -H "Authorization: Bearer $TOKEN" | head -c 200
+
+# ④ 真实调一次模型（这一步才验证得出 AI 配好了没有）
+curl -s -X POST "$BASE/api/admin/questions/backfill-topics?limit=3&dryRun=true" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+第 ④ 步的返回就是答案：
+
+| 返回 | 说明 |
+|---|---|
+| `tagged` > 0，`samples` 里的题目和知识点对得上 | AI 通了，可以继续 |
+| `tagged: 0`、`failed: 3`，日志写「AI 未启用」 | `AI_ENABLED` 没生效 |
+| `tagged: 0`、`failed: 3`，日志是一条 4xx | `AI_API_KEY` 无效或余额不足 |
+| 接口 502 / 超时 | nginx 的 `proxy_read_timeout` 太短 |
+
+最后一步是人工判断：拿真实账号在「复习路径 → 测这一阶段」点一次。
+**AI 出的题质量只能靠人看**，任何自动化检查都替代不了。
 
 ## 技术栈
 
