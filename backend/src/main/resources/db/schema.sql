@@ -431,6 +431,7 @@ CREATE TABLE `self_study_exam` (
     `student_count` INT NOT NULL DEFAULT 1 COMMENT '参与学生数（含创建者）',
     `exam_id` BIGINT COMMENT '关联的正式考试ID（复用Exam表）',
     `generate_prompt` TEXT COMMENT '用户输入的AI生成要求',
+    `stage_key` VARCHAR(20) COMMENT '所属复习阶段（如 stage-2），普通自助考试为空',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除',

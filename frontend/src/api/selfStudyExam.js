@@ -7,6 +7,11 @@ export function createSelfStudyExam(data) {
   return request.post('/student/self-study/create', data)
 }
 
+// 复习路径各阶段的测验结果
+export function getStageProgress() {
+  return request.get('/student/self-study/stage-progress')
+}
+
 // 依据某次考试的错题创建专项巩固卷（只建记录，生成另调 generate）
 export function createFromWrongQuestions(data) {
   return request.post('/student/self-study/from-wrong-questions', data)

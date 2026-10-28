@@ -51,6 +51,9 @@ public class SelfStudyExam {
     /** 用户输入的AI生成要求 */
     private String generatePrompt;
 
+    /** 所属复习阶段（如 stage-2）；普通自助考试/错题专项卷为空 */
+    private String stageKey;
+
     /** 关联的正式考试ID（复用Exam表） */
     private Long examId;
 
