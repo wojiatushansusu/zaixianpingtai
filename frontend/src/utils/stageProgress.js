@@ -91,3 +91,45 @@ export function progressTagType(progress) {
       return 'info'
   }
 }
+
+/**
+ * 给每个阶段标注「上一阶段是否已通过」。
+ *
+ * 这是**软门槛**：不禁止你去测后面的阶段，只提示一句。
+ * 理由很实际——阶段划分是建议，不是考纲。真有人基础好，从阶段 3 起步也说不定；
+ * 强行锁死只会让人去找别的工具。但「你在原地跳段」这件事必须让他自己知道。
+ *
+ * @param {Array<Object>} stages 已经过 mergeStageProgress 的阶段
+ * @returns {Array<Object>} 每项附加 prerequisite 字段
+ */
+export function applyPrerequisites(stages) {
+  return (stages || []).map((stage, index) => {
+    if (index === 0) {
+      return { ...stage, prerequisite: { unmet: false } }
+    }
+
+    const prev = stages[index - 1]
+    const prevState = prev.progress?.state || STAGE_STATE.NOT_TESTED
+
+    return {
+      ...stage,
+      prerequisite: {
+        unmet: prevState !== STAGE_STATE.PASSED,
+        prevKey: prev.key,
+        prevTag: prev.tag,
+        prevTitle: prev.title,
+        prevState
+      }
+    }
+  })
+}
+
+/**
+ * 门槛提示文案。未满足时给出可读的一句话，满足则返回空串。
+ */
+export function describePrerequisite(prerequisite) {
+  if (!prerequisite || !prerequisite.unmet) {
+    return ''
+  }
+  return `建议先通过「${prerequisite.prevTag}」再测这一段`
+}
