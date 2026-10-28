@@ -49,7 +49,15 @@
 
               <p v-if="describeWeakTopics(stage.progress.weakTopics)" class="weak-topics">
                 <el-icon><Warning /></el-icon>
-                {{ describeWeakTopics(stage.progress.weakTopics) }}
+                <span>{{ describeWeakTopics(stage.progress.weakTopics) }}</span>
+                <el-button
+                  v-if="weakTopicNames(stage.progress.weakTopics).length"
+                  size="small" type="danger" plain
+                  :loading="generatingWeak === stage.key"
+                  @click="handleWeakDrill(stage)"
+                >
+                  专攻这 {{ weakTopicNames(stage.progress.weakTopics).length }} 个模块
+                </el-button>
               </p>
 
               <ul class="items">
@@ -255,7 +263,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { reviewStages, buildStagePrompt } from '@/data/reviewPath'
+import { reviewStages, buildStagePrompt, buildWeakTopicPrompt } from '@/data/reviewPath'
 import { paperStructure, syllabusCut, timePlans, weeklyPlan, resources, pitfalls } from '@/data/reviewGuide'
 import { createSelfStudyExam, generateSelfStudyExam, getStageProgress } from '@/api/selfStudyExam'
 import { reportQuality } from '@/utils/qualityNotice'
@@ -266,6 +274,7 @@ import {
   applyPrerequisites,
   describePrerequisite,
   describeWeakTopics,
+  weakTopicNames,
   STAGE_STATE
 } from '@/utils/stageProgress'
 
@@ -274,6 +283,7 @@ const router = useRouter()
 const activeTab = ref('path')
 const progressRows = ref([])
 const generating = ref(null)
+const generatingWeak = ref(null)
 
 // 把后端返回的测验结果合并进阶段数据：未测 / 已出卷待作答 / 已通过 / 未通过
 const stages = computed(() =>
@@ -291,6 +301,46 @@ async function loadProgress() {
 }
 
 onMounted(loadProgress)
+
+/**
+ * 只针对诊断出来的薄弱模块出一套卷。
+ *
+ * 与「测这一阶段」的区别：那个覆盖整段全部模块，这个只考错得多的那几项。
+ * 其他模块已经过了，整段重刷是浪费；但也不能只重做错题——错题只是症状，
+ * 同一个考点换个题面仍然可能错，所以按考点重新出题。
+ */
+async function handleWeakDrill(stage) {
+  const topics = weakTopicNames(stage.progress.weakTopics)
+  if (topics.length === 0) return
+
+  const count = Math.min(Math.max(topics.length * 3, 6), 15)
+
+  try {
+    await ElMessageBox.confirm(
+      `将只针对「${topics.join('、')}」出 ${count} 道题，不覆盖本阶段其他模块。\n出题与质量校验需要一两分钟，页面会保持等待。`,
+      '专攻薄弱考点',
+      { type: 'info', confirmButtonText: '开始生成', cancelButtonText: '取消' }
+    )
+  } catch {
+    return
+  }
+
+  generatingWeak.value = stage.key
+  try {
+    const prompt = buildWeakTopicPrompt(stage, topics, count)
+    const createRes = await createSelfStudyExam({ prompt, duration: 30, stageKey: stage.key })
+    ElMessage.info('专项卷已创建，正在生成题目，请耐心等待...')
+
+    const genRes = await generateSelfStudyExam(createRes.data.id)
+    reportQuality(genRes?.data?.quality, '专项卷生成成功！')
+
+    router.push('/student/self-study')
+  } catch (e) {
+    ElMessage.error(e.message || '生成失败，请稍后重试')
+  } finally {
+    generatingWeak.value = null
+  }
+}
 
 async function handleTestStage(stage) {
   try {
@@ -375,6 +425,7 @@ async function handleTestStage(stage) {
 .weak-topics {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
   margin: 0 0 12px;
   padding: 8px 12px;
@@ -384,6 +435,7 @@ async function handleTestStage(stage) {
   background: rgba(245, 108, 108, 0.07);
   border-radius: 6px;
 }
+.weak-topics .el-button { margin-left: auto; }
 
 .gate-hint {
   display: flex;

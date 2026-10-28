@@ -173,3 +173,19 @@ export function describeWeakTopics(weakTopics, limit = 3) {
 
   return `错在：${parts.join('、')}`
 }
+
+/**
+ * 取出可以拿去出题的薄弱考点名（去掉「未标注知识点」这类非考点项）。
+ *
+ * @param {Array<{topic: string, wrongCount: number}>} weakTopics
+ * @param {number} limit 最多取几个，避免提示词里考点过多导致焦点分散
+ */
+export function weakTopicNames(weakTopics, limit = 4) {
+  if (!Array.isArray(weakTopics)) {
+    return []
+  }
+  return weakTopics
+    .filter((item) => item && item.topic && item.topic !== UNLABELED_TOPIC)
+    .slice(0, limit)
+    .map((item) => item.topic)
+}
