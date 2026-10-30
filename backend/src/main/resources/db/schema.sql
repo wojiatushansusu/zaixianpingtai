@@ -252,6 +252,8 @@ CREATE TABLE `exam_online_student` (
     `online_status` TINYINT NOT NULL DEFAULT 1 COMMENT '在线状态(1-在线 0-离线 2-断网中)',
     `disconnect_time` DATETIME DEFAULT NULL COMMENT '断网时间',
     `reconnect_time` DATETIME DEFAULT NULL COMMENT '重连时间',
+    `disconnect_count` INT NOT NULL DEFAULT 0 COMMENT '断网次数',
+    `total_disconnect_duration` INT NOT NULL DEFAULT 0 COMMENT '累计断网时长(秒)',
     `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
@@ -299,6 +301,9 @@ CREATE TABLE `answer_record` (
     `question_score` INT DEFAULT NULL COMMENT '题目满分',
     `teacher_score` INT DEFAULT NULL COMMENT '教师评分(主观题)',
     `teacher_comment` VARCHAR(1000) DEFAULT NULL COMMENT '教师批注(主观题)',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_record_question` (`record_id`, `question_id`),
     KEY `idx_record_id` (`record_id`)

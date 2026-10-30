@@ -78,8 +78,13 @@ public class FaceCompareService {
             } else {
                 log.warn("人脸检测器文件未找到(classpath: opencv/haarcascade_frontalface_alt2.xml)，将使用简化比对模式");
             }
-        } catch (Exception e) {
-            log.error("人脸识别初始化失败: {}", e.getMessage());
+        } catch (Exception | LinkageError e) {
+            // UnsatisfiedLinkError / NoClassDefFoundError 继承自 Error 而非 Exception，
+            // 只写 catch (Exception) 抓不住它们。而这里在 @PostConstruct 里，
+            // 异常一旦冒出去，Spring 上下文启动失败，登录、出卷、题库、错题本全部一起完蛋。
+            // 人脸核验只是监考的一项可选能力，缺 OpenCV 原生库时应该降级，不该致命。
+            log.warn("人脸识别初始化失败，已降级为简化比对模式: {}", e.toString());
+            faceClassifier = null;
         }
     }
 
