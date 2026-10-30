@@ -86,3 +86,9 @@ jobs:
         env:
           DB_PASSWORD: ci-dummy-password
           JWT_SECRET: ci-dummy-secret-at-least-32-bytes-long
+
+      # 静态对账：应用引用的环境变量 ↔ compose 传的 ↔ .env.example 写的。
+      # 拦的是「配置项加了但 compose 没传」这类——上次 AI_ENABLED 就是，
+      # 部署方填了 key 功能却依然关着，而且不报错。
+      - name: 校验环境变量约定
+        run: python3 scripts/check_env_contract.py

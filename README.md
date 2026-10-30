@@ -203,6 +203,26 @@ curl -s -X POST "$BASE/api/admin/questions/backfill-topics?limit=3&dryRun=true" 
 最后一步是人工判断：拿真实账号在「复习路径 → 测这一阶段」点一次。
 **AI 出的题质量只能靠人看**，任何自动化检查都替代不了。
 
+## 工程护栏
+
+CI 里有两道静态检查，都不需要数据库、秒级完成。它们拦的是**开发期完全静默、
+只在别人部署时炸**的那一类问题：
+
+| 检查 | 拦什么 | 真实案例 |
+|---|---|---|
+| `scripts/check_schema_consistency.py` | 实体字段与 `schema.sql` 的列不一致 | `answer_record` 缺 `deleted`，导致交卷全链路失败 |
+| `scripts/check_env_contract.py` | 应用引用的环境变量与 compose 传的不一致 | `AI_ENABLED` 没有环境变量入口，填了 key 功能也不生效 |
+
+两道检查都验证过「能红」：手工删一列 / 少传一个变量，退出码立刻变 1 并点名具体位置。
+**一道永远不会失败的检查，比没有检查更糟。**
+
+本地也可以直接跑：
+
+```bash
+python3 scripts/check_schema_consistency.py
+python3 scripts/check_env_contract.py
+```
+
 ## 技术栈
 
 | 层级 | 技术 |
