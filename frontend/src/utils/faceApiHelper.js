@@ -27,6 +27,8 @@ let _optionsLowConfidence = null
 // ─── 配置常量 ───
 const CONFIG = {
   // 模型加载地址（jsdelivr CDN，国内可访问，有缓存）
+  // 本地优先：把 @vladmandic/face-api 的 model 目录放到 public/models/ 下即可离线运行
+  LOCAL_MODEL_URL: '/models',
   MODEL_URL: 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model',
   
   // 输入尺寸（越大精度越高但速度更慢，320→416提升远距离小脸检测率）
@@ -445,14 +447,23 @@ async function _doLoad() {
       }
     }
 
-    // 使用 jsdelivr CDN（国内友好）
-    const modelPath = CONFIG.MODEL_URL
-    
-    await Promise.all([
-      window.faceapi.nets.ssdMobilenetv1.loadFromUri(modelPath),
-      window.faceapi.nets.faceLandmark68Net.loadFromUri(modelPath),
-      window.faceapi.nets.faceRecognitionNet.loadFromUri(modelPath)
+    // 先试本地权重（把 face-api 的 model 目录整体放到 public/models/ 即可），
+    // 没有再回落到 CDN。CDN 在部分网络下不通，自托管是更稳的选择，
+    // 但默认不该强迫部署方去下载几十 MB 的权重。
+    const localPath = CONFIG.LOCAL_MODEL_URL
+    const cdnPath = CONFIG.MODEL_URL
+
+    const loadFrom = (base) => Promise.all([
+      window.faceapi.nets.ssdMobilenetv1.loadFromUri(base),
+      window.faceapi.nets.faceLandmark68Net.loadFromUri(base),
+      window.faceapi.nets.faceRecognitionNet.loadFromUri(base)
     ])
+
+    try {
+      await loadFrom(localPath)
+    } catch (localErr) {
+      await loadFrom(cdnPath)
+    }
 
     // 创建检测选项（标准+低置信度备选）
     _optionsSSDMobileNet = new window.faceapi.SsdMobilenetv1Options({

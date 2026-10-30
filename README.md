@@ -152,14 +152,21 @@ server {
 ### 4. 复用旧数据库时
 
 `docker-compose.yml` 只在**首次**创建数据库时执行 `schema.sql`，已存在的库不会自动升级。
-若你导入的是旧数据，需要手动补两列：
+若你导入的是旧数据，按顺序补这三个迁移：
 
 ```bash
-docker compose exec -T mysql mysql -uroot -p"$DB_PASSWORD" exam_platform \
-  < backend/src/main/resources/db/migration-stage-key.sql
-docker compose exec -T mysql mysql -uroot -p"$DB_PASSWORD" exam_platform \
-  < backend/src/main/resources/db/migration-knowledge-point.sql
+for f in migration-schema-sync migration-stage-key migration-knowledge-point; do
+  docker compose exec -T mysql mysql -uroot -p"$DB_PASSWORD" exam_platform \
+    < backend/src/main/resources/db/$f.sql
+done
 ```
+
+> `migration-schema-sync` 补的是 `answer_record` 的 `create_time/update_time/deleted`
+> 和 `exam_online_student` 的两个断网列。**缺 `deleted` 会让交卷、批改、成绩、错题本全部失败**——
+> MyBatis-Plus 的全局逻辑删除会给每次查询补 `WHERE deleted = 0`。
+>
+> 这三处是部署时才发现的老账。现在 CI 里有一道 `scripts/check_schema_consistency.py`，
+> 会比对实体字段与 `schema.sql` 的列，不一致直接失败，同类问题不会再漏。
 
 ### 5. 部署后 5 分钟自查
 
@@ -234,6 +241,16 @@ curl -s -X POST "$BASE/api/admin/questions/backfill-topics?limit=3&dryRun=true" 
 
 > 登录页只在开发环境显示这组提示，生产构建不会渲染。
 > **任何对公网开放的部署都必须先重置这些密码或删除演示账号。**
+
+## 人脸核验的前端模型
+
+浏览器侧用 `face-api.js`，模型**先找本地 `/models/`，找不到再回落到 jsdelivr CDN**。
+
+- 默认走 CDN，仓库里不带权重（约 12 MB）
+- 网络访问 CDN 不稳时，把权重放进 `frontend/public/models/` 即可离线运行，
+  具体命令见该目录下的 `README.md`
+- 加载失败会降级（`_doLoad` 返回 false），不会阻塞考试主流程
+- 后端 OpenCV 检测与前端是两套：后端缺原生库时同样降级，不影响其他功能
 
 ## 已知限制
 

@@ -29,6 +29,11 @@ jobs:
           distribution: temurin
           cache: maven
 
+      # 秒级完成、不需要数据库：拦的是「实体加了字段、建表脚本忘了改列」这一类问题。
+      # 这次部署暴露的 4 个坑里有 3 个属于这一类，开发期完全不报错，只在别人部署时炸。
+      - name: 校验实体与建表脚本一致
+        run: python3 scripts/check_schema_consistency.py
+
       - name: 运行单测
         working-directory: backend
         # javacv-platform 默认会拉取所有平台的原生库（超过 1GB），

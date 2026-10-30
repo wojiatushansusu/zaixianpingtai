@@ -46,3 +46,7 @@ uploads/
 .project
 .DS_Store
 Thumbs.db
+
+# 人脸模型权重（约 12MB，按需自托管，不入库）
+frontend/public/models/*
+!frontend/public/models/README.md
