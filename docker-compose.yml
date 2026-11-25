@@ -62,7 +62,9 @@ services:
       redis:
         condition: service_healthy
     ports:
-      - "8080:8080"
+      # 只绑回环：外部访问一律走 8088 的 nginx，后端没必要直接暴露到局域网。
+      # 调试时本机 curl 127.0.0.1:8080 依然可用。
+      - "127.0.0.1:8080:8080"
 
   frontend:
     build:

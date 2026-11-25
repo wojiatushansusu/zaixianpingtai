@@ -13,16 +13,22 @@
 
 ## 想启用的话
 
-把官方发行包里的 `opencv.js` 放到这个目录（约 10 MB）：
+一条命令：
 
 ```bash
-# 方式一：从官方 release 取
-curl -LO https://github.com/opencv/opencv/releases/download/4.9.0/opencv-4.9.0-docs.zip
-# 解压后取 opencv.js，放到 public/opencv/
-
-# 方式二：本地已有构建产物，直接复制
-cp /path/to/opencv.js frontend/public/opencv/
+bash scripts/fetch-opencv.sh
 ```
 
-放好后重新构建镜像即可。文件不进仓库（已在 `.gitignore` 里忽略），
-避免每次 clone 多拉 10 MB。
+脚本会下载、校验体积与 SHA-256、写入本目录。已存在且完整时直接跳过，
+文件损坏（例如上次下载中断）会自动重新下载。
+
+放好后重新构建镜像生效：
+
+```bash
+docker compose up -d --build
+```
+
+**没有接入 `npm run build`**：构建一旦依赖外网下载，网络一抖整个镜像就构建失败，
+而这只是个可选功能。所以保持手动一步，失败也不影响主流程。
+
+文件不进仓库（已在 `.gitignore` 里忽略），避免每次 clone 多拉 10 MB。
