@@ -7,6 +7,12 @@
 CREATE DATABASE IF NOT EXISTS exam_platform DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 USE exam_platform;
 
+-- 必须显式设置连接字符集。
+-- docker-entrypoint-initdb.d 里执行本脚本时，mysql 客户端默认用 latin1 连接，
+-- 文件里的 UTF-8 中文会被按 latin1 解释、再以 utf8mb4 存进去 → 双重编码，
+-- 结果是所有中文变成乱码，而且**不报错、不告警**，只有人点开页面才发现。
+SET NAMES utf8mb4;
+
 -- ============================================
 -- 一、基础表结构
 -- ============================================

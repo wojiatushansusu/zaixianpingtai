@@ -67,57 +67,38 @@ public class StudentExamController {
     }
 
     /**
-     * 诊断接口 - 排查学生看不到考试的问题，支持自动修复
+     * 自查接口：回答「我为什么看不到考试」。
+     *
+     * 只返回**调用者自己**的数据——白名单条数、可参加的考试 id、自己的账号状态。
+     * 原来这里会返回全站活跃学生的 id 与用户名，任何登录学生都能调，
+     * 等于一个现成的花名册导出接口；还带一个 `repair=true` 会写库的开关，
+     * 让一个 GET 请求具备副作用。两者都去掉了。
+     *
+     * 排查「看不到考试」需要的信息，学生自己这部分就够；
+     * 全站视角属于管理员的事，走 /admin/** 的接口。
      */
     @GetMapping("/debug-info")
-    public Result<Map<String, Object>> debugInfo(
-            @RequestParam(required = false, defaultValue = "false") boolean repair,
-            HttpServletRequest request) {
+    public Result<Map<String, Object>> debugInfo(HttpServletRequest request) {
         Long studentId = (Long) request.getAttribute("userId");
         Map<String, Object> info = new HashMap<>();
 
-        // 1. 当前用户信息
         User me = userMapper.selectById(studentId);
         info.put("currentUser", Map.of(
                 "id", studentId,
                 "username", me != null ? me.getUsername() : "N/A",
-                "realName", me != null ? me.getRealName() : "N/A",
                 "roleId", me != null ? me.getRoleId() : "N/A",
-                "roleKey", me != null && me.getRoleKey() != null ? me.getRoleKey() : "N/A",
                 "status", me != null ? me.getStatus() : "N/A"
         ));
 
-        // 2. 所有活跃学生
-        List<User> allStudents = userMapper.selectList(
-                new LambdaQueryWrapper<User>().eq(User::getRoleId, 3).eq(User::getStatus, 1));
-        info.put("allActiveStudents", allStudents.stream()
-                .map(u -> Map.of("id", u.getId(), "username", u.getUsername(), "roleId", u.getRoleId(), "status", u.getStatus()))
-                .collect(Collectors.toList()));
-
-        // 3. 该学生的白名单
         List<ExamWhitelist> myWhitelist = examWhitelistMapper.selectList(
                 new LambdaQueryWrapper<ExamWhitelist>().eq(ExamWhitelist::getStudentId, studentId));
         info.put("myWhitelistCount", myWhitelist.size());
-        info.put("myWhitelistExamIds", myWhitelist.stream().map(ExamWhitelist::getExamId).collect(Collectors.toList()));
+        info.put("myWhitelistExamIds", myWhitelist.stream()
+                .map(ExamWhitelist::getExamId).collect(Collectors.toList()));
 
-        // 4. 白名单总数和最近考试
-        info.put("whitelistTotalCount", examWhitelistMapper.selectCount(null));
-        List<Exam> recentExams = examMapper.selectList(
-                new LambdaQueryWrapper<Exam>().orderByDesc(Exam::getId).last("LIMIT 5"));
-        info.put("recentExams", recentExams.stream()
-                .map(e -> Map.of("id", e.getId(), "title", e.getTitle(), "status", e.getStatus(), "deleted", e.getDeleted()))
-                .collect(Collectors.toList()));
-
-        // 5. 自动修复
-        if (repair) {
-            examService.repairStudentWhitelist(studentId);
-            // 修复后重新查询
-            List<ExamWhitelist> newWhitelist = examWhitelistMapper.selectList(
-                    new LambdaQueryWrapper<ExamWhitelist>().eq(ExamWhitelist::getStudentId, studentId));
-            info.put("afterRepairWhitelistCount", newWhitelist.size());
-            info.put("afterRepairExamIds", newWhitelist.stream().map(ExamWhitelist::getExamId).collect(Collectors.toList()));
-            info.put("repairDone", true);
-        }
+        // 只给数量，不给标题：已发布但未分配给本人的考试不该出现在这里
+        info.put("publishedExamCount", examMapper.selectCount(
+                new LambdaQueryWrapper<Exam>().ne(Exam::getStatus, 0)));
 
         return Result.success(info);
     }

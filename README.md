@@ -161,6 +161,10 @@ for f in migration-schema-sync migration-stage-key migration-knowledge-point; do
 done
 ```
 
+> **中文乱码**（旧库）：`db/migration-charset-fix.sql`。原因是 initdb 执行 `schema.sql` 时
+> mysql 客户端默认走 latin1，UTF-8 中文被按 latin1 解释后存成 utf8mb4，等于编码两次。
+> `schema.sql` 已加 `SET NAMES utf8mb4`，但那只对新建库有效；已乱掉的库要单独修，**先备份再跑**。
+>
 > `migration-schema-sync` 补的是 `answer_record` 的 `create_time/update_time/deleted`
 > 和 `exam_online_student` 的两个断网列。**缺 `deleted` 会让交卷、批改、成绩、错题本全部失败**——
 > MyBatis-Plus 的全局逻辑删除会给每次查询补 `WHERE deleted = 0`。
