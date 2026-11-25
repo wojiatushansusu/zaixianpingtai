@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -78,6 +79,21 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BadCredentialsException.class)
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     public Result<?> handleBadCredentials(BadCredentialsException e) {
+        // 正常登录失败不是系统故障，用 WARN，别污染 ERROR 日志
+        log.warn("登录失败: {}", e.getMessage());
+        return Result.error(401, "用户名或密码错误");
+    }
+
+    /**
+     * 兜住其余认证异常。
+     *
+     * 认证失败原本会落到通用 Exception 分支：返回 500「系统繁忙」并记 ERROR，
+     * 客户端看到的是"服务器挂了"，运维看到的是一条假故障。
+     */
+    @ExceptionHandler(AuthenticationException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public Result<?> handleAuthentication(AuthenticationException e) {
+        log.warn("认证失败: {}", e.getMessage());
         return Result.error(401, "用户名或密码错误");
     }
 
