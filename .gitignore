@@ -50,3 +50,7 @@ Thumbs.db
 # 人脸模型权重（约 12MB，按需自托管，不入库）
 frontend/public/models/*
 !frontend/public/models/README.md
+
+# OpenCV.js（约 10MB，按需自托管，不入库）
+frontend/public/opencv/*
+!frontend/public/opencv/README.md
