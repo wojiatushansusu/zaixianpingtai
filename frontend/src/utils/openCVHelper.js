@@ -6,9 +6,13 @@
  * - 考试中AI监考: 后端JavaCV AiAnalysisService处理
  * 
  * 使用方式:
- * 1. index.html 中已配置 <script async src="https://docs.opencv.org/4.9.0/opencv.js">
- * 2. 等待OpenCV加载完成: await OpenCVHelper.waitForLoad()
- * 3. 调用 detectFaces() 进行人脸检测
+ * 1. await OpenCVHelper.waitForLoad()  // 用到时才加载，不占首屏
+ * 2. 调用 detectFaces() 进行人脸检测
+ *
+ * 加载策略：只从本地 /opencv/opencv.js 加载，**不回落到任何 CDN**。
+ * 原先靠 index.html 里的 docs.opencv.org 全局脚本（10MB、境外），
+ * 国内网络经常不通，而且每次打开页面都会白拉——即使根本不用人脸核验。
+ * 现在没有本地文件就直接降级，把「一次下载 10MB」变成「一个 404」。
  */
 class OpenCVHelper {
   constructor() {
@@ -21,33 +25,74 @@ class OpenCVHelper {
    * 等待OpenCV.js加载完成
    */
   async waitForLoad() {
-    if (this.loaded) return true
+    if (this.loaded) return this.loaded
+    // 多处同时调用时只加载一次，避免重复注入 10MB 脚本
+    if (!this._loadPromise) {
+      this._loadPromise = this.doLoad()
+    }
+    return this._loadPromise
+  }
 
+  async doLoad() {
+    if (typeof cv === 'undefined') {
+      const ok = await this.injectLocalScript()
+      if (!ok) {
+        console.warn('OpenCV.js 未自托管（/opencv/opencv.js 缺失），人脸检测降级')
+        this.loaded = false
+        return false
+      }
+    }
+
+    // 脚本 load 事件不代表 wasm 运行时已初始化，还要等到 cv 上出现可用的构造函数
+    const ready = await this.waitUntil(() => typeof cv !== 'undefined' && !!cv.CascadeClassifier, 10000)
+    if (!ready) {
+      console.warn('OpenCV.js 运行时初始化超时，人脸检测降级')
+      this.loaded = false
+      return false
+    }
+
+    try {
+      await this.initFaceClassifier()
+    } catch (e) {
+      console.warn('OpenCV 分类器初始化失败:', e)
+    }
+
+    this.loaded = true
+    return true
+  }
+
+  /** 注入本地脚本；404 会立即触发 onerror，不会像 CDN 那样干等 */
+  injectLocalScript() {
     return new Promise((resolve) => {
-      if (typeof cv !== 'undefined') {
-        this.initFaceClassifier().then(() => {
-          this.loaded = true
-          resolve(true)
-        }).catch(() => {
-          this.loaded = true
-          resolve(true)
-        })
-        return
+      const script = document.createElement('script')
+      script.src = '/opencv/opencv.js'
+      script.async = true
+
+      let settled = false
+      const finish = (ok) => {
+        if (settled) return
+        settled = true
+        resolve(ok)
       }
 
-      let attempts = 0
-      const maxAttempts = 150 // 15秒超时
-      const interval = setInterval(() => {
-        attempts++
-        if (typeof cv !== 'undefined') {
-          clearInterval(interval)
-          this.initFaceClassifier().then(() => {
-            this.loaded = true
-            resolve(true)
-          })
-        } else if (attempts >= maxAttempts) {
-          clearInterval(interval)
-          console.warn('OpenCV.js 加载超时，使用降级模式')
+      script.onload = () => finish(true)
+      script.onerror = () => finish(false)
+      document.head.appendChild(script)
+
+      // 兜底：本地文件很大时加载可能很慢，给 20 秒
+      setTimeout(() => finish(false), 20000)
+    })
+  }
+
+  waitUntil(check, timeoutMs) {
+    return new Promise((resolve) => {
+      const start = Date.now()
+      const timer = setInterval(() => {
+        if (check()) {
+          clearInterval(timer)
+          resolve(true)
+        } else if (Date.now() - start > timeoutMs) {
+          clearInterval(timer)
           resolve(false)
         }
       }, 100)

@@ -8,7 +8,11 @@
 <body>
   <div id="app"></div>
   <script type="module" src="/src/main.js"></script>
-  <!-- OpenCV.js: 人脸检测引擎，仅在使用AI监控时加载 -->
-  <script async src="https://docs.opencv.org/4.9.0/opencv.js" onload="window.__opencvJsLoaded=true" onerror="console.warn('OpenCV.js加载失败，AI监控将降级为基础模式')"></script>
+  <!--
+    OpenCV.js 不再在这里全局引入。
+    原先指向 docs.opencv.org（10MB，境外），国内经常不通或极慢，且每次打开页面都会拉。
+    现在改为用人脸核验时才按需从本地 /opencv/opencv.js 加载；没有该文件就降级。
+    自托管方式见 public/opencv/README.md
+  -->
 </body>
 </html>
