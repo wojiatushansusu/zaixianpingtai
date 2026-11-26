@@ -47,7 +47,12 @@ public class AnalysisController {
                     if (q != null) {
                         a.setQuestionContent(q.getContent());
                         a.setQuestionType(q.getType());
-                        a.setQuestionScore(q.getScore());
+                        // 用「试卷里给这道题的分值」，不是题目自身分值。
+                        // 题目自身 5 分、试卷给 20 分时，这里回题目分会让批改界面
+                        // 显示错误的上限，老师想给 15 分都过不去。
+                        int paperScore = gradingService.fullScoreOf(examId, a.getQuestionId());
+                        a.setQuestionScore(paperScore > 0 ? paperScore
+                                : (q.getScore() != null ? q.getScore() : 0));
                     }
                 });
             }

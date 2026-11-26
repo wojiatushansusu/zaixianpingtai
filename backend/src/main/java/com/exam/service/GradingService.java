@@ -5,11 +5,13 @@ import com.exam.common.exception.BusinessException;
 import com.exam.mapper.AnswerRecordMapper;
 import com.exam.mapper.ExamMapper;
 import com.exam.mapper.ExamRecordMapper;
+import com.exam.mapper.PaperQuestionMapper;
 import com.exam.mapper.QuestionMapper;
 import com.exam.pojo.AnswerRecord;
 import com.exam.pojo.Exam;
 import com.exam.pojo.ExamRecord;
 import com.exam.pojo.Paper;
+import com.exam.pojo.PaperQuestion;
 import com.exam.pojo.Question;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +34,7 @@ public class GradingService {
     private final ExamRecordMapper examRecordMapper;
     private final ExamMapper examMapper;
     private final QuestionMapper questionMapper;
+    private final PaperQuestionMapper paperQuestionMapper;
 
     /**
      * 获取需要批改的主观题列表
@@ -91,28 +94,12 @@ public class GradingService {
         // 评分合法性校验
         // BUG-14修复：同时校验评分不能超过该题满分值
         if (score != null && score < 0) {
-            throw new BusinessException("评分不能为负数");
+            throw new BusinessException(400, "评分不能为负数");
         }
         if (score != null) {
-            // 获取题目满分值进行上限校验
-            AnswerRecord tmpAnswer = answer; // 已在上方查询
-            // 通过 answer 找到关联题目，获取该题在试卷中的分值
-            List<AnswerRecord> sameQuestion = answerRecordMapper.selectList(
-                new LambdaQueryWrapper<AnswerRecord>()
-                    .eq(AnswerRecord::getRecordId, tmpAnswer.getRecordId())
-                    .eq(AnswerRecord::getQuestionId, tmpAnswer.getQuestionId()));
-            // 找试卷满分：用该题的 score 字段（autoGrade 时已写入 pq.score）
-            int maxScore = sameQuestion.stream()
-                .filter(a -> a.getScore() != null)
-                .mapToInt(AnswerRecord::getScore)
-                .max().orElse(Integer.MAX_VALUE);
-            // 如果 autoGrade 对主观题 score=0，直接查题目的 score 字段
-            if (maxScore == 0) {
-                Question q = questionMapper.selectById(tmpAnswer.getQuestionId());
-                if (q != null && q.getScore() != null) maxScore = q.getScore();
-            }
+            int maxScore = resolveFullScore(answer);
             if (maxScore > 0 && score > maxScore) {
-                throw new BusinessException("评分不能超过题目满分值 " + maxScore);
+                throw new BusinessException(400, "评分不能超过该题分值 " + maxScore);
             }
         }
 
@@ -149,6 +136,53 @@ public class GradingService {
         for (AnswerRecord answer : answerRecords) {
             recalculateExamScore(answer.getRecordId());
         }
+    }
+
+    /**
+     * 这道题在**本次考试里**值多少分。
+     *
+     * <p>不能用 `question.score`：同一个题目在不同试卷里可以配不同分值。
+     * 实测踩到的是——题目自身 5 分、试卷里给 20 分，老师批改 15 分被拒
+     * 「不能超过题目满分值 5」，等于卷面分值形同虚设。
+     *
+     * <p>`answer_record.question_score` 也不能用：它在交卷时写入的是「自动判分得分」
+     * （主观题恒为 0），并且会被未批改列表接口覆写成题目自身分值。
+     * 唯一可靠的来源是 exam → paper → paper_question。
+     */
+    private int resolveFullScore(AnswerRecord answer) {
+        ExamRecord record = examRecordMapper.selectById(answer.getRecordId());
+        if (record != null && record.getExamId() != null) {
+            int score = fullScoreOf(record.getExamId(), answer.getQuestionId());
+            if (score > 0) {
+                return score;
+            }
+        }
+        Question question = questionMapper.selectById(answer.getQuestionId());
+        return question != null && question.getScore() != null ? question.getScore() : 0;
+    }
+
+    /**
+     * 某道题在某场考试中值多少分（试卷里的配置值）。
+     *
+     * <p>批改上限、待批改列表的展示都用它——不能用 `question.score`，
+     * 同一个题目在不同试卷里可以配不同分值。
+     *
+     * @return 找不到配置时返回 0，由调用方决定回退策略
+     */
+    public int fullScoreOf(Long examId, Long questionId) {
+        if (examId == null || questionId == null) {
+            return 0;
+        }
+        Exam exam = examMapper.selectById(examId);
+        if (exam == null || exam.getPaperId() == null) {
+            return 0;
+        }
+        PaperQuestion pq = paperQuestionMapper.selectOne(
+                new LambdaQueryWrapper<PaperQuestion>()
+                        .eq(PaperQuestion::getPaperId, exam.getPaperId())
+                        .eq(PaperQuestion::getQuestionId, questionId)
+                        .last("LIMIT 1"));
+        return pq != null && pq.getScore() != null ? pq.getScore() : 0;
     }
 
     /**

@@ -11,6 +11,8 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+
+import java.time.format.DateTimeParseException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -100,7 +102,14 @@ public class GlobalExceptionHandler {
         String cause = e.getMostSpecificCause() != null ? e.getMostSpecificCause().getMessage() : "";
         log.warn("请求体解析失败: {}", cause);
 
-        if (cause != null && cause.contains("LocalDateTime")) {
+        // 按异常类型判断，不按文案匹配。
+        // 实际抛的是 DateTimeParseException，message 形如
+        // "Text '2026-11-27 20:00:00' could not be parsed at index 10" ——
+        // 里面并没有 "LocalDateTime" 字样，靠字符串匹配的分支永远不会命中。
+        Throwable root = e.getMostSpecificCause();
+        if (root instanceof DateTimeParseException
+                || (root != null && root.getMessage() != null
+                    && root.getMessage().contains("could not be parsed"))) {
             return Result.error(400, "时间格式不正确，应为 yyyy-MM-ddTHH:mm:ss（例：2026-11-27T09:00:00）");
         }
         return Result.error(400, "请求参数格式不正确");

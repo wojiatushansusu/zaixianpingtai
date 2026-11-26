@@ -589,14 +589,13 @@ public class QuestionController {
         }
 
         for (Question q : questions) {
-            // 用宽松解析：一条 type/difficulty 非法的历史数据不该让整个列表 400
+            // 用宽松解析：一条 type/difficulty 非法的历史数据不该让整个列表 400，
+            // 也不该被静默显示成正常值（difficulty=9 显示「中等」会掩盖数据问题）
             QuestionTypeEnum typeEnum = QuestionTypeEnum.fromCodeOrNull(q.getType());
             q.setTypeDesc(typeEnum != null ? typeEnum.getDescription() : "未知类型");
-            try {
-                q.setDifficultyDesc(DifficultyEnum.fromCode(q.getDifficulty()).getDescription());
-            } catch (IllegalArgumentException e) {
-                q.setDifficultyDesc("未知难度");
-            }
+
+            DifficultyEnum difficultyEnum = DifficultyEnum.fromCodeOrNull(q.getDifficulty());
+            q.setDifficultyDesc(difficultyEnum != null ? difficultyEnum.getDescription() : "未知难度");
 
             if (q.getCreatorId() != null) {
                 q.setCreatorName(creatorNameMap.get(q.getCreatorId()));
