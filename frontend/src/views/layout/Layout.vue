@@ -457,6 +457,13 @@ const handleUserCommand = async (command) => {
   background: var(--color-bg-page);
 }
 
+/* 手机：24px 双边内边距太浪费屏幕，收到 12px */
+@media (max-width: 768px) {
+  .main-content {
+    padding: 12px;
+  }
+}
+
 .fade-transform-enter-active,
 .fade-transform-leave-active {
   transition: all var(--transition-normal);

@@ -23,37 +23,37 @@
 
     <!-- 统计面板 -->
     <el-row :gutter="16" class="stats-row">
-      <el-col :span="4">
+      <el-col :xs="12" :sm="8" :md="4">
         <div class="stat-card online">
           <div class="stat-value">{{ onlineStats.online || 0 }}</div>
           <div class="stat-label">在线考生</div>
         </div>
       </el-col>
-      <el-col :span="4">
+      <el-col :xs="12" :sm="8" :md="4">
         <div class="stat-card disconnected">
           <div class="stat-value">{{ onlineStats.disconnected || 0 }}</div>
           <div class="stat-label">断网中</div>
         </div>
       </el-col>
-      <el-col :span="4">
+      <el-col :xs="12" :sm="8" :md="4">
         <div class="stat-card violation-total">
           <div class="stat-value">{{ stats.totalCount }}</div>
           <div class="stat-label">总违规</div>
         </div>
       </el-col>
-      <el-col :span="4">
+      <el-col :xs="12" :sm="8" :md="4">
         <div class="stat-card switch">
           <div class="stat-value">{{ stats.switchCount }}</div>
           <div class="stat-label">切屏</div>
         </div>
       </el-col>
-      <el-col :span="4">
+      <el-col :xs="12" :sm="8" :md="4">
         <div class="stat-card noface">
           <div class="stat-value">{{ stats.noFaceCount }}</div>
           <div class="stat-label">人脸消失</div>
         </div>
       </el-col>
-      <el-col :span="4">
+      <el-col :xs="12" :sm="8" :md="4">
         <div class="stat-card ai">
           <div class="stat-value">{{ stats.otherCount || 0 }}</div>
           <div class="stat-label">AI检测</div>
@@ -64,7 +64,7 @@
     <!-- 主内容区 -->
     <el-row :gutter="16">
       <!-- 左侧: 在线学生 + 视频预览 -->
-      <el-col :span="8">
+      <el-col :xs="24" :sm="24" :md="8">
         <el-card class="panel-card">
           <template #header>
             <span>考生监控 ({{ onlineStudents.length }})</span>
@@ -97,7 +97,7 @@
       </el-col>
 
       <!-- 中间: 实时违规列表 -->
-      <el-col :span="10">
+      <el-col :xs="24" :sm="24" :md="10">
         <el-card class="panel-card">
           <template #header>
             <div class="card-header-inner">
@@ -153,7 +153,7 @@
       </el-col>
 
       <!-- 右侧: 操作面板 + 快捷操作 -->
-      <el-col :span="6">
+      <el-col :xs="24" :sm="24" :md="6">
         <!-- 快捷操作 -->
         <el-card class="panel-card" style="margin-bottom: 16px;">
           <template #header><span>快捷操作</span></template>
@@ -506,6 +506,8 @@ function sendWarning() {
 
 .monitor-header {
   display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;

@@ -537,6 +537,105 @@ a {
   }
 }
 
+/* ── 移动端：表格类页面（题库/试卷/考试/用户/成绩）── */
+@media (max-width: 768px) {
+  /* 卡片头：标题与操作按钮改为上下两行，按钮自动换行。
+     原来 justify-content: space-between + 一行 3~4 个按钮，手机上一个都放不下。 */
+  .page-card .el-card__header {
+    padding: 12px 14px;
+  }
+
+  .page-card .card-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .page-card .card-header > div:last-child {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .page-card .card-header .el-button {
+    margin-left: 0 !important;
+  }
+
+  /* 单个按钮不要拉满整行，靠左即可 */
+  .page-card .card-header > .el-button {
+    align-self: flex-start;
+  }
+
+  /* 搜索栏：控件占满一行，按钮等分 */
+  .search-bar {
+    padding: 12px;
+    gap: 8px;
+  }
+
+  .search-bar .el-input,
+  .search-bar .el-select,
+  .search-bar .el-date-editor {
+    width: 100% !important;
+  }
+
+  .search-bar .el-button {
+    margin-left: 0 !important;
+    flex: 1 1 auto;
+  }
+
+  /* 对话框不超出屏幕（宽度是在模板上写死的 500~750px） */
+  .el-dialog {
+    width: 92vw !important;
+    max-width: 92vw;
+    margin-top: 5vh !important;
+  }
+
+  .el-dialog__header {
+    padding: 16px 16px 8px;
+  }
+
+  .el-dialog__body {
+    padding: 12px 16px 16px !important;
+  }
+
+  .el-message-box {
+    width: 88vw !important;
+    max-width: 88vw;
+  }
+
+  /* 表格：字号收紧，列内边距减小，让更多列挤进屏宽 */
+  .el-table {
+    font-size: 12px;
+  }
+
+  .el-table .cell {
+    padding: 0 8px;
+    line-height: 1.5;
+  }
+
+  .el-table__header-wrapper th .cell {
+    white-space: nowrap;
+  }
+
+  /* 分页：居中换行，隐藏「每页条数」和「跳页」 */
+  .el-pagination {
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 8px;
+  }
+
+  .el-pagination__sizes,
+  .el-pagination__jump {
+    display: none !important;
+  }
+
+  /* 表单：标签置顶，避免左侧标签吃掉一半宽度 */
+  .el-form-item {
+    margin-bottom: 16px;
+  }
+}
+
+
 /* ── 工具类 ── */
 .text-gradient {
   background: linear-gradient(135deg, var(--color-primary) 0%, #06d6a0 100%);

@@ -193,12 +193,12 @@
           <el-input v-model="form.analysis" type="textarea" :rows="2" />
         </el-form-item>
         <el-row :gutter="16">
-          <el-col :span="12">
+          <el-col :xs="24" :sm="12">
             <el-form-item label="分值" prop="score">
               <el-input-number v-model="form.score" :min="1" :max="100" style="width: 100%;" />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
+          <el-col :xs="24" :sm="12">
             <el-form-item label="难度">
               <el-select v-model="form.difficulty" style="width: 100%;">
                 <el-option label="简单" :value="1" />
