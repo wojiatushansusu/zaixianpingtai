@@ -231,6 +231,14 @@ public class ExamService {
             examRecordMapper.physicalDeleteDeleted(examId, studentId);
             examRecordMapper.insert(record);
             log.info("[startExam] 创建考试记录 recordId={}", record.getId());
+        } else if (record.getStatus() != null && record.getStatus() != 0) {
+            // 已交卷就不要再下发题目：否则学生可以反复调这个接口重看试卷。
+            // save-answer / submit 本来就有拦截，成绩改不了，但「能反复看到题目」
+            // 本身就不该发生，且状态机的三个入口应当口径一致。
+            // 重考走 /retake，那条路径会物理删除答卷记录，不受这里影响。
+            log.info("[startExam] 答卷已提交，拒绝重新开始 recordId={}, status={}",
+                    record.getId(), record.getStatus());
+            throw new BusinessException(5004, "答卷已提交");
         } else {
             log.info("[startExam] 复用已有考试记录 recordId={}, status={}", record.getId(), record.getStatus());
         }

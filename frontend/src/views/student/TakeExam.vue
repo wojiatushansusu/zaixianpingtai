@@ -359,6 +359,22 @@ async function loadExamData() {
     
     // 错误分类
     const error = e
+
+    // 业务码优先：这类错误是考试规则不允许（已结束/未开始/已提交/不在白名单），
+    // 属于正常状态，不该显示成「服务器遇到技术问题」并建议联系技术支持。
+    const EXAM_BIZ_CODES = {
+      5001: '考试不存在，可能已被删除',
+      5002: '考试还未开始，请在开放时间后再进入',
+      5003: '本场考试已结束',
+      5004: '本场考试已交卷',
+      5005: '你不在本场考试的名单中，请联系老师',
+      5006: '考试当前状态异常，请联系老师'
+    }
+    if (error.bizCode && EXAM_BIZ_CODES[error.bizCode]) {
+      setError('exam', EXAM_BIZ_CODES[error.bizCode], { bizCode: error.bizCode })
+      return
+    }
+
     if (error.name === 'NetworkError' || !navigator.onLine) {
       setError('network', '网络连接失败，请检查网络后重试', { error: error.message })
     } else if (error.response?.status === 401 || error.response?.status === 403) {
@@ -560,7 +576,8 @@ function getErrorDescription() {
     case 'data':
       return '服务器返回的数据格式不正确，可能是考试配置问题或服务器故障。'
     case 'exam':
-      return '该考试可能已结束、未开始、被删除或您没有权限参加。请确认考试信息。'
+      // 标题已经是具体原因（已结束/已交卷/不在名单），这里补一句「该怎么办」
+      return '这属于考试状态限制，不是系统故障。如需重考或确认名单，请联系任课老师。'
     case 'system':
       return '服务器遇到技术问题，请稍后再试。如果问题持续，请截屏联系技术支持。'
     default:

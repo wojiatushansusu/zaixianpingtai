@@ -161,6 +161,63 @@ class GradingLogicTest {
         void multipleLettersIsWrong() {
             assertFalse(grade(ScoringRules.TYPE_JUDGE, "A", "A,B").correct());
         }
+
+        // ── 以下为回归用例 ──
+        // 上面三个用例全都用 A/B 作答，而线上数据用的是 true/false。
+        // "true" 被 toLetterSet 拆成 {T,R,U,E} 共 4 个字母，永远不可能等于 1，
+        // 导致判断题无论答对答错都判错——而测试因为用 A/B 一直是绿的。
+        // 测试要照着真实数据写，不然覆盖的是自己的假设。
+
+        @Test
+        @DisplayName("true 答 true 得分（线上格式，曾经全判错）")
+        void trueIsTrue() {
+            ScoringRules.GradeResult r = grade(ScoringRules.TYPE_JUDGE, "true", "true");
+            assertTrue(r.correct(), "答案完全一致却被判错");
+            assertEquals(FULL_SCORE, r.score());
+        }
+
+        @Test
+        @DisplayName("false 答 false 得分")
+        void falseIsFalse() {
+            assertTrue(grade(ScoringRules.TYPE_JUDGE, "false", "false").correct());
+        }
+
+        @Test
+        @DisplayName("true 答 false 不得分")
+        void trueAgainstFalse() {
+            assertFalse(grade(ScoringRules.TYPE_JUDGE, "true", "false").correct());
+        }
+
+        @Test
+        @DisplayName("大小写与空白容错")
+        void tolerantOfCaseAndSpace() {
+            assertTrue(grade(ScoringRules.TYPE_JUDGE, "TRUE", " true ").correct());
+            assertTrue(grade(ScoringRules.TYPE_JUDGE, "False", " false").correct());
+        }
+
+        @Test
+        @DisplayName("中文与数字写法也认")
+        void acceptsChineseAndNumeric() {
+            assertTrue(grade(ScoringRules.TYPE_JUDGE, "正确", "对").correct());
+            assertTrue(grade(ScoringRules.TYPE_JUDGE, "错误", "错").correct());
+            assertTrue(grade(ScoringRules.TYPE_JUDGE, "1", "true").correct());
+            assertTrue(grade(ScoringRules.TYPE_JUDGE, "0", "false").correct());
+        }
+
+        @Test
+        @DisplayName("新旧格式混用也能对上")
+        void crossFormatStillMatches() {
+            // 老卷子答案是 A，新前端提交 true —— 语义相同，必须判对
+            assertTrue(grade(ScoringRules.TYPE_JUDGE, "A", "true").correct());
+            assertTrue(grade(ScoringRules.TYPE_JUDGE, "true", "A").correct());
+        }
+
+        @Test
+        @DisplayName("无法识别的作答判错，不抛异常")
+        void garbageIsWrong() {
+            assertFalse(grade(ScoringRules.TYPE_JUDGE, "true", "不知道").correct());
+            assertFalse(grade(ScoringRules.TYPE_JUDGE, "true", "").correct());
+        }
     }
 
     // ==================== 简答题 ====================

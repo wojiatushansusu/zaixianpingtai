@@ -37,7 +37,12 @@ request.interceptors.response.use(
       } else if (!response.config.silent) {
         showErrorMsg(res.message || '操作失败')
       }
-      return Promise.reject(new Error(res.message || '操作失败'))
+      // 把业务码挂到错误上：调用方经常需要区分「业务规则不允许」
+      // （考试已结束、不在白名单）和「系统真的出错了」，
+      // 只给一个 message 字符串是判断不出来的。
+      const bizError = new Error(res.message || '操作失败')
+      bizError.bizCode = res.code
+      return Promise.reject(bizError)
     }
     return res
   },
