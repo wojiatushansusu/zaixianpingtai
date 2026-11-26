@@ -23,6 +23,14 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class WrongQuestionService {
 
+    /**
+     * 主观题得分率低于此值才进错题本。
+     * 配 1.0 等于「不满分就算错」（旧行为），配 0 等于「主观题永不进错题本」。
+     */
+    @org.springframework.beans.factory.annotation.Value(
+            "${app.wrong-question.weak-threshold:0.6}")
+    private double weakThreshold;
+
     private final ExamRecordMapper examRecordMapper;
     private final AnswerRecordMapper answerRecordMapper;
     private final QuestionMapper questionMapper;
@@ -76,6 +84,13 @@ public class WrongQuestionService {
         Map<Long, Question> questionMap = questionMapper.selectBatchIds(questionIds).stream()
                 .collect(Collectors.toMap(Question::getId, q -> q));
 
+        // 3.5 按得分率规则过滤：主观题批改给分后，达到阈值的不再算错题
+        // 旧口径 is_correct != 1 会让「批了 7/10 的简答」永远躺在错题本里
+        wrongAnswers.removeIf(a -> !WrongQuestionRules.countsAsWrong(a, questionMap.get(a.getQuestionId()), weakThreshold));
+        if (wrongAnswers.isEmpty()) {
+            return new ArrayList<>();
+        }
+
         // 4. 构建recordId到ExamRecord的映射
         Map<Long, ExamRecord> recordMap = records.stream()
                 .collect(Collectors.toMap(ExamRecord::getId, r -> r));
@@ -114,7 +129,8 @@ public class WrongQuestionService {
             item.put("answerRecordId", answer.getId());
             item.put("questionId", question.getId());
             item.put("questionType", question.getType());
-            item.put("questionTypeDesc", QuestionTypeEnum.fromCode(question.getType()).getDescription());
+            QuestionTypeEnum typeEnum = QuestionTypeEnum.fromCodeOrNull(question.getType());
+            item.put("questionTypeDesc", typeEnum != null ? typeEnum.getDescription() : "未知类型");
             item.put("content", question.getContent());
             item.put("optionA", question.getOptionA());
             item.put("optionB", question.getOptionB());
@@ -123,7 +139,11 @@ public class WrongQuestionService {
             item.put("studentAnswer", answer.getStudentAnswer());
             item.put("correctAnswer", question.getAnswer());
             item.put("analysis", question.getAnalysis());
-            item.put("score", question.getScore());
+            // 满分按试卷配置给（题目自身分值和试卷分值可能不同），再附上实得分，
+            // 前端就能显示「7 / 20」而不是含糊的「20」
+            item.put("score", WrongQuestionRules.resolveFullScore(answer, question));
+            item.put("earnedScore", answer.getTeacherScore() != null
+                    ? answer.getTeacherScore() : (answer.getScore() != null ? answer.getScore() : 0));
             item.put("difficulty", question.getDifficulty());
             item.put("examTitle", exam != null ? exam.getTitle() : "未知考试");
             item.put("submitTime", examRecord != null ? examRecord.getSubmitTime() : null);
@@ -297,7 +317,8 @@ public class WrongQuestionService {
             item.put("answerRecordId", answer.getId());
             item.put("questionId", question.getId());
             item.put("questionType", question.getType());
-            item.put("questionTypeDesc", QuestionTypeEnum.fromCode(question.getType()).getDescription());
+            QuestionTypeEnum typeEnum = QuestionTypeEnum.fromCodeOrNull(question.getType());
+            item.put("questionTypeDesc", typeEnum != null ? typeEnum.getDescription() : "未知类型");
             item.put("content", question.getContent());
             item.put("optionA", question.getOptionA());
             item.put("optionB", question.getOptionB());
@@ -306,7 +327,11 @@ public class WrongQuestionService {
             item.put("studentAnswer", answer.getStudentAnswer());
             item.put("correctAnswer", question.getAnswer());
             item.put("analysis", question.getAnalysis());
-            item.put("score", question.getScore());
+            // 满分按试卷配置给（题目自身分值和试卷分值可能不同），再附上实得分，
+            // 前端就能显示「7 / 20」而不是含糊的「20」
+            item.put("score", WrongQuestionRules.resolveFullScore(answer, question));
+            item.put("earnedScore", answer.getTeacherScore() != null
+                    ? answer.getTeacherScore() : (answer.getScore() != null ? answer.getScore() : 0));
             item.put("difficulty", question.getDifficulty());
             result.add(item);
         }

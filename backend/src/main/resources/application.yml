@@ -64,6 +64,11 @@ file:
 
 # 人脸核验配置
 app:
+  # 错题本收录口径
+  wrong-question:
+    # 主观题「得分率」低于此值才计入错题本。
+    # 1.0 等价于旧行为（不满分就算错）；0 等于主观题永不进错题本。
+    weak-threshold: 0.6
   face:
     enabled: true
     threshold: 0.75
