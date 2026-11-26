@@ -1010,8 +1010,35 @@ function stopDevToolsDetection() {
   padding: 0 16px;
 }
 
+@media (max-width: 768px) {
+  .exam-page {
+    padding: 0 8px;
+  }
+
+  .exam-header {
+    padding: 12px 14px;
+    /* 顶部信息条在手机上跟着滚，不再吸顶——否则一根横条吃掉半屏 */
+    position: static;
+  }
+
+  .exam-title {
+    font-size: 15px;
+    line-height: 1.4;
+  }
+
+  .question-nav {
+    padding: 12px;
+  }
+
+  .question-item {
+    padding: 14px;
+  }
+}
+
 .exam-header {
   display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;

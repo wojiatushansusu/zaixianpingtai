@@ -8,37 +8,37 @@
 
     <!-- 统计卡片 -->
     <el-row :gutter="16" style="margin-bottom: 20px;" v-if="statistics">
-      <el-col :span="4">
+      <el-col :xs="12" :sm="8" :md="4">
         <div class="stat-card">
           <div class="stat-value">{{ statistics.totalStudents }}</div>
           <div class="stat-label">参考人数</div>
         </div>
       </el-col>
-      <el-col :span="4">
+      <el-col :xs="12" :sm="8" :md="4">
         <div class="stat-card">
           <div class="stat-value">{{ statistics.avgScore }}</div>
           <div class="stat-label">平均分</div>
         </div>
       </el-col>
-      <el-col :span="4">
+      <el-col :xs="12" :sm="8" :md="4">
         <div class="stat-card">
           <div class="stat-value">{{ statistics.maxScore }}</div>
           <div class="stat-label">最高分</div>
         </div>
       </el-col>
-      <el-col :span="4">
+      <el-col :xs="12" :sm="8" :md="4">
         <div class="stat-card">
           <div class="stat-value">{{ statistics.minScore }}</div>
           <div class="stat-label">最低分</div>
         </div>
       </el-col>
-      <el-col :span="4">
+      <el-col :xs="12" :sm="8" :md="4">
         <div class="stat-card">
           <div class="stat-value" style="color: #67c23a;">{{ statistics.passCount }}</div>
           <div class="stat-label">及格人数</div>
         </div>
       </el-col>
-      <el-col :span="4">
+      <el-col :xs="12" :sm="8" :md="4">
         <div class="stat-card">
           <div class="stat-value" style="color: #409eff;">{{ statistics.passRate }}%</div>
           <div class="stat-label">及格率</div>
