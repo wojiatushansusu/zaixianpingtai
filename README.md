@@ -207,6 +207,30 @@ curl -s -X POST "$BASE/api/admin/questions/backfill-topics?limit=3&dryRun=true" 
 最后一步是人工判断：拿真实账号在「复习路径 → 测这一阶段」点一次。
 **AI 出的题质量只能靠人看**，任何自动化检查都替代不了。
 
+### 6. 判分规则变更后，重算历史答卷
+
+分数是**判完就落库**的。改了判分规则，之前交的卷子不会自己变对——
+比如判断题那条规则修复前，所有判断题都判了 0 分，这些记录需要一次性纠正。
+
+```bash
+# 先干跑：看哪几份、从几分变几分
+curl -X POST "http://localhost:8088/api/admin/exams/recalculate-scores?dryRun=true" \
+  -H "Authorization: Bearer <admin token>"
+
+# 确认无误再落库
+curl -X POST "http://localhost:8088/api/admin/exams/recalculate-scores?dryRun=false" \
+  -H "Authorization: Bearer <admin token>"
+```
+
+返回 `{scannedRecords, changedRecords, changedAnswers, samples[{recordId, before, after}]}`。
+
+两条限制值得知道：
+
+- **主观题不动**：教师给的分不会被算法覆盖
+- **题目已删除的记录保持原分**：不去猜一个没有依据的值
+
+> 默认 `dryRun=true`，因为它会改写成绩。别跳过干跑直接落库。
+
 ## 工程护栏
 
 CI 里有两道静态检查，都不需要数据库、秒级完成。它们拦的是**开发期完全静默、
