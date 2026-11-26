@@ -19,8 +19,8 @@
 
       <!-- 表格 -->
       <el-table :data="tableData" border stripe v-loading="loading">
-        <el-table-column prop="id" label="ID" width="60" />
-        <el-table-column prop="title" label="试卷名称" width="180" />
+        <el-table-column prop="id" label="ID" width="60" class-name="hide-mobile" label-class-name="hide-mobile" />
+        <el-table-column prop="title" label="试卷名称" min-width="180" />
         <el-table-column prop="description" label="描述" show-overflow-tooltip />
         <el-table-column prop="totalScore" label="总分" width="80" />
         <el-table-column prop="passScore" label="及格分" width="80" />
