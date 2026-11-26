@@ -4,10 +4,12 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.exam.mapper.AnswerRecordMapper;
 import com.exam.mapper.ExamMapper;
 import com.exam.mapper.ExamRecordMapper;
+import com.exam.mapper.PaperQuestionMapper;
 import com.exam.mapper.QuestionMapper;
 import com.exam.pojo.AnswerRecord;
 import com.exam.pojo.Exam;
 import com.exam.pojo.ExamRecord;
+import com.exam.pojo.PaperQuestion;
 import com.exam.pojo.Question;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +46,7 @@ public class ScoreRecalculationService {
     private final AnswerRecordMapper answerRecordMapper;
     private final QuestionMapper questionMapper;
     private final ExamMapper examMapper;
+    private final PaperQuestionMapper paperQuestionMapper;
 
     /**
      * @param dryRun true 时只统计不落库
@@ -66,8 +69,9 @@ public class ScoreRecalculationService {
                 continue;
             }
 
-            AnswerRecalculation.Plan plan =
-                    AnswerRecalculation.plan(answers, loadQuestions(answers));
+            Exam examOfRecord = examMapper.selectById(record.getExamId());
+            AnswerRecalculation.Plan plan = AnswerRecalculation.plan(
+                    answers, loadQuestions(answers), loadPaperScores(examOfRecord));
             changedAnswerCount += plan.changes().size();
 
             int oldTotal = nz(record.getScore());
@@ -85,8 +89,8 @@ public class ScoreRecalculationService {
                     answerRecordMapper.updateById(update);
                 }
 
-                Exam exam = examMapper.selectById(record.getExamId());
-                int passScore = exam != null && exam.getPassScore() != null ? exam.getPassScore() : 60;
+                int passScore = examOfRecord != null && examOfRecord.getPassScore() != null
+                        ? examOfRecord.getPassScore() : 60;
                 record.setScore(plan.newTotal());
                 record.setIsPassed(plan.newTotal() >= passScore ? 1 : 0);
                 examRecordMapper.updateById(record);
@@ -115,6 +119,21 @@ public class ScoreRecalculationService {
                 dryRun, scannedRecords, changedRecordCount, changedAnswerCount);
 
         return summary;
+    }
+
+    /** 题目 id → 试卷里给的分值。没有它就只能按题目自身分值算，会算错。 */
+    private Map<Long, Integer> loadPaperScores(Exam exam) {
+        Map<Long, Integer> map = new HashMap<>();
+        if (exam == null || exam.getPaperId() == null) {
+            return map;
+        }
+        for (PaperQuestion pq : paperQuestionMapper.selectList(
+                new LambdaQueryWrapper<PaperQuestion>().eq(PaperQuestion::getPaperId, exam.getPaperId()))) {
+            if (pq.getQuestionId() != null && pq.getScore() != null) {
+                map.put(pq.getQuestionId(), pq.getScore());
+            }
+        }
+        return map;
     }
 
     /** 批量取题，避免逐条查 */

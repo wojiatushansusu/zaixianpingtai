@@ -52,6 +52,16 @@ public final class AnswerRecalculation {
     }
 
     public static Plan plan(List<AnswerRecord> answers, Map<Long, Question> questions) {
+        return plan(answers, questions, Map.of());
+    }
+
+    /**
+     * @param paperScores 题目 id → 它在**本次考试试卷里**的分值。
+     *                    缺省时回退到答题记录/题目上的分值。
+     *                    同一个题目在不同试卷里分值可以不同，用题目自身分值算分是错的。
+     */
+    public static Plan plan(List<AnswerRecord> answers, Map<Long, Question> questions,
+                            Map<Long, Integer> paperScores) {
         List<Change> changes = new ArrayList<>();
         int total = 0;
         int skipped = 0;
@@ -79,9 +89,12 @@ public final class AnswerRecalculation {
                 continue;
             }
 
-            int fullScore = answer.getQuestionScore() != null
-                    ? answer.getQuestionScore()
-                    : (question.getScore() != null ? question.getScore() : 0);
+            Integer fromPaper = paperScores.get(answer.getQuestionId());
+            int fullScore = fromPaper != null && fromPaper > 0
+                    ? fromPaper
+                    : (answer.getQuestionScore() != null
+                        ? answer.getQuestionScore()
+                        : (question.getScore() != null ? question.getScore() : 0));
 
             ScoringRules.GradeResult result = ScoringRules.gradeObjective(
                     type, question.getAnswer(), answer.getStudentAnswer(), fullScore);

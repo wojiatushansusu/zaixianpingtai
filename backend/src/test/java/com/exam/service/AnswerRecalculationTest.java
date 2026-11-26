@@ -85,6 +85,33 @@ class AnswerRecalculationTest {
     }
 
     @Test
+    @DisplayName("分值以试卷配置为准，不是题目自身分值")
+    void usesPaperScoreNotQuestionScore() {
+        // 题目自身 5 分，但试卷里给了 20 分；学生答对，应按 20 分计
+        AnswerRecord a = answer(1L, 30L, "B", 5, 1, 5);
+        Question q = question(30L, ScoringRules.TYPE_SINGLE, "B", 5);
+
+        AnswerRecalculation.Plan plan = AnswerRecalculation.plan(
+                List.of(a), Map.of(30L, q), Map.of(30L, 20));
+
+        assertEquals(20, plan.newTotal(), "应该按试卷的 20 分算");
+        assertEquals(1, plan.changes().size(), "分数从 5 变 20，应记为一处变更");
+        assertEquals(20, plan.changes().get(0).newScore());
+    }
+
+    @Test
+    @DisplayName("试卷分值缺失时退回题目自身分值")
+    void fallsBackWhenPaperScoreMissing() {
+        AnswerRecord a = answer(1L, 31L, "true", 0, 0, 5);
+        Question q = question(31L, ScoringRules.TYPE_JUDGE, "true", 5);
+
+        AnswerRecalculation.Plan plan = AnswerRecalculation.plan(
+                List.of(a), Map.of(31L, q), Map.of());
+
+        assertEquals(5, plan.newTotal());
+    }
+
+    @Test
     @DisplayName("已批改的主观题要用教师分参与合计，不能算成 0")
     void usesTeacherScoreForGradedShortAnswer() {
         // 人工批改只写 teacherScore，score 仍是自动判分的 0。

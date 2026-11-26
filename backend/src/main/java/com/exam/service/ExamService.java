@@ -542,11 +542,12 @@ public class ExamService {
 
             int questionScore = 0;
             boolean isCorrect = false;
+            // 这道题在本次试卷中的分值（不是题目自身分值），落库时要用
+            int fullScore = pq.getScore() != null ? pq.getScore() : 0;
 
             if (answerRecord != null && question != null) {
                 // 判分规则统一收敛到 ScoringRules，便于单测；本方法只负责取数与落库
                 int qType = question.getType() != null ? question.getType() : ScoringRules.TYPE_SINGLE;
-                int fullScore = pq.getScore() != null ? pq.getScore() : 0;
                 ScoringRules.GradeResult result = ScoringRules.gradeObjective(
                         qType, question.getAnswer(), answerRecord.getStudentAnswer(), fullScore);
                 questionScore = result.score();
@@ -558,6 +559,11 @@ public class ExamService {
             if (answerRecord != null) {
                 answerRecord.setIsCorrect(isCorrect ? 1 : 0);
                 answerRecord.setScore(questionScore);
+                // 同时记下这道题在本次试卷里值多少分。
+                // 否则这条记录只有「得了多少」，没有「满分多少」——
+                // 事后批改、重算、错题本展示都得绕回 exam→paper→paper_question 去查，
+                // 而且题目自身分值和试卷分值不一致时（实测 5 分 vs 20 分）会算错。
+                answerRecord.setQuestionScore(fullScore);
                 answerRecordMapper.updateById(answerRecord);
             }
         }
