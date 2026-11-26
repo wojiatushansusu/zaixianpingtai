@@ -134,6 +134,14 @@ public class PaperController {
         paper.setPassScore(dto.getPassScore() != null ? dto.getPassScore() : 60);
         paper.setCreatorId((Long) request.getAttribute("userId"));
 
+        // 题目必须先存在。否则会建出一份引用空 id 的试卷，
+        // 学生开始考试时才在加载题目处炸出来，问题被推到最下游。
+        for (PaperDTO.PaperQuestionDTO q : dto.getQuestions()) {
+            if (q.getQuestionId() == null || questionMapper.selectById(q.getQuestionId()) == null) {
+                return Result.error(400, "题目不存在：" + q.getQuestionId());
+            }
+        }
+
         int totalScore = 0;
         for (PaperDTO.PaperQuestionDTO q : dto.getQuestions()) {
             totalScore += q.getScore();

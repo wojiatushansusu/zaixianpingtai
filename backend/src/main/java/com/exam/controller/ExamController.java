@@ -84,6 +84,13 @@ public class ExamController {
      */
     @PostMapping
     public Result<Void> createExam(@Valid @RequestBody ExamDTO dto, HttpServletRequest request) {
+        // 时间倒挂必须在入口拦住：否则能建出一场「永远已结束」的考试，
+        // 学生点进去只会看到「考试已结束」，而老师那边显示创建成功，很难查。
+        if (dto.getStartTime() != null && dto.getEndTime() != null
+                && !dto.getEndTime().isAfter(dto.getStartTime())) {
+            return Result.error(400, "结束时间必须晚于开始时间");
+        }
+
         Exam exam = new Exam();
         exam.setTitle(dto.getTitle());
         exam.setDescription(dto.getDescription());

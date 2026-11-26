@@ -85,6 +85,34 @@ class AnswerRecalculationTest {
     }
 
     @Test
+    @DisplayName("已批改的主观题要用教师分参与合计，不能算成 0")
+    void usesTeacherScoreForGradedShortAnswer() {
+        // 人工批改只写 teacherScore，score 仍是自动判分的 0。
+        // 这里若按 score 累加，会把 17 分算成 10 分并在落库时抹掉批改结果。
+        AnswerRecord a = answer(1L, 20L, "我的作答", 0, 0, 10);
+        a.setTeacherScore(7);
+        Question q = question(20L, ScoringRules.TYPE_SHORT_ANSWER, "参考答案", 10);
+
+        AnswerRecalculation.Plan plan = AnswerRecalculation.plan(List.of(a), Map.of(20L, q));
+
+        assertEquals(7, plan.newTotal(), "应该用教师给的 7 分，而不是 0");
+        assertTrue(plan.changes().isEmpty(), "主观题不该被重算改写");
+        assertFalse(plan.totalChanged(7), "总分没变化，不该触发落库");
+    }
+
+    @Test
+    @DisplayName("未批改的主观题仍按 0 分计，且不产生变更")
+    void ungradedShortAnswerStaysZero() {
+        AnswerRecord a = answer(1L, 20L, "我的作答", 0, 0, 10);
+        Question q = question(20L, ScoringRules.TYPE_SHORT_ANSWER, "参考答案", 10);
+
+        AnswerRecalculation.Plan plan = AnswerRecalculation.plan(List.of(a), Map.of(20L, q));
+
+        assertEquals(0, plan.newTotal());
+        assertTrue(plan.changes().isEmpty());
+    }
+
+    @Test
     @DisplayName("题目被删除时保持原分，不归零")
     void keepsScoreWhenQuestionMissing() {
         AnswerRecord a = answer(1L, 999L, "A", 5, 1, 5);
