@@ -29,7 +29,7 @@
             {{ (searchParams.pageNum - 1) * searchParams.pageSize + $index + 1 }}
           </template>
         </el-table-column>
-        <el-table-column prop="title" label="考试名称" width="180" />
+        <el-table-column prop="title" label="考试名称" min-width="180" />
         <el-table-column prop="paperTitle" label="试卷" width="140" />
         <el-table-column label="时间" width="320">
           <template #default="{ row }">

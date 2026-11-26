@@ -74,7 +74,7 @@
       <!-- 表格 -->
       <el-table :data="tableData" border stripe v-loading="loading" @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="45" align="center" />
-        <el-table-column label="序号" width="60" align="center">
+        <el-table-column label="序号" width="60" align="center" class-name="hide-mobile" label-class-name="hide-mobile">
           <template #default="{ $index }">
             {{ (searchParams.pageNum - 1) * searchParams.pageSize + $index + 1 }}
           </template>
@@ -86,7 +86,7 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="content" label="题干" show-overflow-tooltip />
+        <el-table-column prop="content" label="题干" min-width="200" show-overflow-tooltip />
         <el-table-column prop="difficultyDesc" label="难度" width="70">
           <template #default="{ row }">
             <el-tag :type="row.difficulty === 1 ? 'success' : row.difficulty === 3 ? 'danger' : 'info'" size="small">
@@ -94,7 +94,7 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="标签" width="180">
+        <el-table-column label="标签" width="180" class-name="hide-mobile" label-class-name="hide-mobile">
           <template #default="{ row }">
             <el-tag v-for="tag in (row.tagNames || [])" :key="tag" size="small" style="margin-right: 4px;">
               {{ tag }}
@@ -102,9 +102,9 @@
             <span v-if="!row.tagNames || row.tagNames.length === 0" style="color: #909399; font-size: 13px;">无</span>
           </template>
         </el-table-column>
-        <el-table-column prop="answer" label="答案" width="120" />
+        <el-table-column prop="answer" label="答案" width="120" class-name="hide-mobile" label-class-name="hide-mobile" />
         <el-table-column prop="score" label="分值" width="60" />
-        <el-table-column prop="creatorName" label="创建者" width="90" />
+        <el-table-column prop="creatorName" label="创建者" width="90" class-name="hide-mobile" label-class-name="hide-mobile" />
         <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link @click="openDialog(row)">编辑</el-button>

@@ -629,6 +629,12 @@ a {
     display: none !important;
   }
 
+  /* 手机上隐藏次要列（ID、序号、标签、创建者这类），
+     否则一张 8 列的表在 390px 屏上会把「题干」挤成一条线 */
+  .hide-mobile {
+    display: none !important;
+  }
+
   /* 表单：标签置顶，避免左侧标签吃掉一半宽度 */
   .el-form-item {
     margin-bottom: 16px;
