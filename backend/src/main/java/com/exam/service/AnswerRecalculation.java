@@ -43,7 +43,7 @@ public final class AnswerRecalculation {
      *
      * @param newTotal       重算后的总分
      * @param changes        需要改写的记录（已过滤掉没有变化的）
-     * @param skippedAnswers 因题目缺失或主观题而跳过的条数
+     * @param skippedAnswers 因题目缺失或主观题而跳过的条数（跳过的是"判分"，分数仍计入总分）
      */
     public record Plan(int newTotal, List<Change> changes, int skippedAnswers) {
         public boolean totalChanged(int oldTotal) {
@@ -70,8 +70,11 @@ public final class AnswerRecalculation {
 
             int type = question.getType() != null ? question.getType() : ScoringRules.TYPE_SINGLE;
             if (type == ScoringRules.TYPE_SHORT_ANSWER) {
-                // 主观题是教师给的分，重算不该覆盖人工判断
-                total += oldScore;
+                // 主观题不重算，但要**用教师给的分**参与合计。
+                // 人工批改只写 teacherScore，不写 score（score 仍是自动判分的 0），
+                // 这里若按 oldScore 累加，会把老师给的 7 分算成 0，
+                // 落库时就会把 17 分改成 10 分——把批改结果抹掉。
+                total += answer.getTeacherScore() != null ? answer.getTeacherScore() : oldScore;
                 skipped++;
                 continue;
             }

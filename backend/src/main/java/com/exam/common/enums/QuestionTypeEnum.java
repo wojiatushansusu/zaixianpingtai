@@ -29,6 +29,23 @@ public enum QuestionTypeEnum {
     }
 
     /**
+     * 用于「展示」的宽松解析：认不出来就返回 null，不抛异常。
+     *
+     * <p>场景：列表接口给每条题填充类型描述。库里只要有一条 type 非法的历史数据，
+     * {@link #fromCode} 抛出的 IllegalArgumentException 会让**整页列表**变成 400，
+     * 一条脏数据毁掉整个查询。展示层不该有这种杀伤力。
+     */
+    public static QuestionTypeEnum fromCodeOrNull(Integer code) {
+        if (code == null) {
+            return null;
+        }
+        for (QuestionTypeEnum type : values()) {
+            if (type.code == code) return type;
+        }
+        return null;
+    }
+
+    /**
      * 是否为客观题（可自动阅卷）
      */
     public boolean isObjective() {

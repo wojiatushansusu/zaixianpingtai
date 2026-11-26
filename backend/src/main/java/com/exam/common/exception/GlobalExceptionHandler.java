@@ -10,6 +10,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -83,6 +84,26 @@ public class GlobalExceptionHandler {
         // 正常登录失败不是系统故障，用 WARN，别污染 ERROR 日志
         log.warn("登录失败: {}", e.getMessage());
         return Result.error(401, "用户名或密码错误");
+    }
+
+    /**
+     * 请求体解析失败（字段类型不对、JSON 语法错、时间格式不对）。
+     *
+     * <p>不单独处理会落到通用分支返回 500「系统繁忙」——把**调用方的参数错误**
+     * 报成**服务端故障**。实测踩到的是时间格式：前端提交 ISO
+     * （`2026-11-27T00:10:00`），外部调用方若写成 `2026-11-27 00:10:00` 就 500，
+     * 排查时会一路怀疑后端。
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Result<?> handleUnreadable(HttpMessageNotReadableException e) {
+        String cause = e.getMostSpecificCause() != null ? e.getMostSpecificCause().getMessage() : "";
+        log.warn("请求体解析失败: {}", cause);
+
+        if (cause != null && cause.contains("LocalDateTime")) {
+            return Result.error(400, "时间格式不正确，应为 yyyy-MM-ddTHH:mm:ss（例：2026-11-27T09:00:00）");
+        }
+        return Result.error(400, "请求参数格式不正确");
     }
 
     /**

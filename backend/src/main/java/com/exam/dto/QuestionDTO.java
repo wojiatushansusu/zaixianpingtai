@@ -1,6 +1,8 @@
 package com.exam.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
@@ -12,6 +14,8 @@ public class QuestionDTO {
     private Long id;
 
     @NotNull(message = "题目类型不能为空")
+    @Min(value = 1, message = "题目类型只能是 1-单选 2-多选 3-判断 4-简答")
+    @Max(value = 4, message = "题目类型只能是 1-单选 2-多选 3-判断 4-简答")
     private Integer type;
 
     @NotBlank(message = "题干不能为空")
