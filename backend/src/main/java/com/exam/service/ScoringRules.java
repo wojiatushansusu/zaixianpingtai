@@ -75,6 +75,20 @@ public final class ScoringRules {
             return GradeResult.wrong();
         }
 
+        // 判断题的答案是 true / false 这样的单词，不能走字母集合那一套：
+        // "true" 会被拆成 {T,R,U,E} 共 4 个字母，而单选/判断要求「恰好一个选项」，
+        // 于是判断题无论答对答错都判错。必须单独按布尔值比较。
+        if (type == TYPE_JUDGE) {
+            Boolean expectedJudge = parseJudgement(correctAnswer);
+            Boolean actualJudge = parseJudgement(studentAnswer);
+            if (expectedJudge == null || actualJudge == null) {
+                return GradeResult.wrong();
+            }
+            return expectedJudge.equals(actualJudge)
+                    ? GradeResult.right(fullScore)
+                    : GradeResult.wrong();
+        }
+
         Set<String> expected = toLetterSet(correctAnswer);
         Set<String> actual = toLetterSet(studentAnswer);
         if (expected.isEmpty() || actual.isEmpty()) {
@@ -111,6 +125,26 @@ public final class ScoringRules {
             // 替考嫌疑：固定分值，不随严重度线性放大
             case "face_position_changed" -> 15;
             default -> level * 3;
+        };
+    }
+
+    /**
+     * 解析判断题答案。
+     *
+     * <p>历史上答案写法不统一：老数据用 A/B（A=正确、B=错误，对应前端
+     * `optionA='正确'`、`optionB='错误'`），新数据用 true/false。
+     * 两种都要认，否则同一道题换个年份的卷子就会判错。
+     *
+     * @return 无法识别时返回 null（按答错处理）
+     */
+    static Boolean parseJudgement(String answer) {
+        if (isBlank(answer)) {
+            return null;
+        }
+        return switch (answer.trim().toUpperCase(Locale.ROOT)) {
+            case "TRUE", "T", "1", "A", "正确", "对", "是", "√" -> Boolean.TRUE;
+            case "FALSE", "F", "0", "B", "错误", "错", "否", "×" -> Boolean.FALSE;
+            default -> null;
         };
     }
 

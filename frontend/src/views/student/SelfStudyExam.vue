@@ -644,7 +644,12 @@ async function handleStartExam(exam) {
     // 跳转到考试页面（使用关联的正式examId）
     router.push(`/student/exam/${targetExamId}`)
   } catch (e) {
-    // 用户取消
+    // 取消确认框不该当成错误；但真正的失败必须说出来。
+    // 原样吞掉所有异常，学生点「开始考试」遇到「答卷已提交」会是「点了没反应」。
+    if (e === 'cancel' || e === 'close') {
+      return
+    }
+    ElMessage.error(e?.message || '开始考试失败，请稍后重试')
   }
 }
 

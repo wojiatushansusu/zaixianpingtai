@@ -11,6 +11,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -82,6 +83,20 @@ public class GlobalExceptionHandler {
         // 正常登录失败不是系统故障，用 WARN，别污染 ERROR 日志
         log.warn("登录失败: {}", e.getMessage());
         return Result.error(401, "用户名或密码错误");
+    }
+
+    /**
+     * 路径不存在（含静态资源）。
+     *
+     * 不单独处理的话会落到通用 Exception 分支：返回 500「系统繁忙」并记一条带堆栈的 ERROR。
+     * 后果有两个：客户端无法区分「接口写错了」和「服务挂了」；
+     * 扫描器、拼错的路径、旧版客户端残留请求都会在监控里变成「系统故障」。
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Result<?> handleNoResource(NoResourceFoundException e) {
+        log.debug("接口不存在: {}", e.getResourcePath());
+        return Result.error(404, "接口不存在");
     }
 
     /**
