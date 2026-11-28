@@ -24,6 +24,19 @@ request.interceptors.request.use(
   }
 )
 
+
+/**
+ * 是不是登录请求。
+ *
+ * 登录失败也返回 401，但它表示「账号或密码错误」，不是「登录状态过期」。
+ * 不加区分的话，用户输错密码会看到「登录已过期，请重新登录」并被踢回登录页——
+ * 一个自己刚打开过的页面，提示却是会话失效，方向完全跑偏。
+ */
+function isLoginRequest(config) {
+  const url = config?.url || ''
+  return url.includes('/auth/login')
+}
+
 // 响应拦截器
 let lastErrorMsg = ''
 let lastErrorTime = 0
@@ -32,7 +45,9 @@ request.interceptors.response.use(
     const res = response.data
     if (res.code !== 200) {
       // 未认证 - 跳转登录（仅对非401的code显示错误消息，401单独处理）
-      if (res.code === 401) {
+      if (res.code === 401 && isLoginRequest(response.config)) {
+        showErrorMsg(res.message || '用户名或密码错误')
+      } else if (res.code === 401) {
         clearAuthAndRedirect(res.message || '登录已过期，请重新登录')
       } else if (!response.config.silent) {
         showErrorMsg(res.message || '操作失败')
@@ -53,7 +68,10 @@ request.interceptors.response.use(
     }
     if (error.response) {
       const status = error.response.status
-      if (status === 401) {
+      if (status === 401 && isLoginRequest(error.config)) {
+        // 同上：登录接口的 401 是凭据错误，不是会话失效
+        showErrorMsg(error.response.data?.message || '用户名或密码错误')
+      } else if (status === 401) {
         clearAuthAndRedirect('登录已过期，请重新登录')
       } else if (status === 403) {
         showErrorMsg('权限不足')
