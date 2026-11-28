@@ -26,7 +26,7 @@
 
       <!-- 表格 -->
       <el-table :data="tableData" border stripe v-loading="loading">
-        <el-table-column prop="id" label="ID" width="60" class-name="hide-mobile" label-class-name="hide-mobile" />
+        <el-table-column v-if="!isMobile" prop="id" label="ID" width="60" />
         <el-table-column prop="username" label="用户名" width="120" />
         <el-table-column prop="realName" label="真实姓名" width="120" />
         <el-table-column prop="roleName" label="角色" width="100">
@@ -112,6 +112,9 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useIsMobile } from '@/composables/useIsMobile'
+
+const { isMobile } = useIsMobile()
 import { ElMessage } from 'element-plus'
 import { getUserList, createUser, updateUser, deleteUser, getRoles } from '@/api/user'
 

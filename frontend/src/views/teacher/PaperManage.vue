@@ -19,7 +19,7 @@
 
       <!-- 表格 -->
       <el-table :data="tableData" border stripe v-loading="loading">
-        <el-table-column prop="id" label="ID" width="60" class-name="hide-mobile" label-class-name="hide-mobile" />
+        <el-table-column v-if="!isMobile" prop="id" label="ID" width="60" />
         <el-table-column prop="title" label="试卷名称" min-width="180" />
         <el-table-column prop="description" label="描述" show-overflow-tooltip />
         <el-table-column prop="totalScore" label="总分" width="80" />
@@ -166,6 +166,9 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useIsMobile } from '@/composables/useIsMobile'
+
+const { isMobile } = useIsMobile()
 import { ElMessage } from 'element-plus'
 import { getPaperList, createPaper, updatePaper, deletePaper, getPaperQuestions } from '@/api/paper'
 import { getAllQuestions } from '@/api/question'
